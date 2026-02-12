@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react'; // Added useState and useEffect
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Shield, LogOut, ChevronRight, X, AlertTriangle } from "lucide-react"; // Added AlertTriangle
+import { User, Shield, LogOut, ChevronRight, X, AlertTriangle, Settings} from "lucide-react";
 
-export default function Sidebar({ isOpen, onClose }) {
+export default function Sidebar({ isOpen, onClose, userRole = "Learner" }) {
   const navigate = useNavigate();
-  
-  // State to track if the user is in the "confirm" phase
   const [showConfirm, setShowConfirm] = useState(false);
 
-  // Revert the button if the sidebar closes or after a timeout
   useEffect(() => {
     if (!isOpen) setShowConfirm(false);
   }, [isOpen]);
@@ -16,10 +13,8 @@ export default function Sidebar({ isOpen, onClose }) {
   const handleLogoutClick = () => {
     if (!showConfirm) {
       setShowConfirm(true);
-      // Auto-revert after 3 seconds if they don't click again
       setTimeout(() => setShowConfirm(false), 3000);
     } else {
-      // Actually log out
       localStorage.removeItem('userToken'); 
       localStorage.removeItem('userRole');
       onClose();
@@ -27,9 +22,39 @@ export default function Sidebar({ isOpen, onClose }) {
     }
   };
 
+  // --- DYNAMIC DATA LOGIC ---
+  const userData = {
+    Admin: { 
+      name: "Kizuna Admin", 
+      id: "HQ-SYS-9901", 
+      initials: "KA",
+      avatarBg: "bg-red-600",
+      textColor: "text-red-600"
+    },
+    Educator: { 
+      name: "Prof. Santos", 
+      id: "EDU-2024-552", 
+      initials: "PS",
+      avatarBg: "bg-orange-500",
+      textColor: "text-orange-600"
+    },
+    Learner: { 
+      name: "Jasver Dela Cruz", 
+      id: "ID: 2024-008821", 
+      initials: "MJ",
+      avatarBg: "bg-orange-100",
+      textColor: "text-orange-600"
+    }
+  };
+
+  const current = userData[userRole] || userData.Learner;
+
+  // You can also change menu items based on role
   const menuItems = [
     { icon: <User size={20}/>, label: "Edit Profile", sub: "Personal info & Avatar", path: "/edit-profile" },
     { icon: <Shield size={20}/>, label: "Account Security", sub: "Privacy & Data", path: "/security" },
+    // Only show system settings to Admin
+    ...(userRole === "Admin" ? [{ icon: <Settings size={20}/>, label: "System Config", sub: "Global Parameters", path: "/config" }] : []),
   ];
 
   return (
@@ -47,9 +72,18 @@ export default function Sidebar({ isOpen, onClose }) {
           </button>
           
           <div className="text-center mb-12">
-            <div className="w-24 h-24 bg-orange-100 rounded-[2.5rem] mx-auto flex items-center justify-center text-3xl font-black text-orange-600 mb-6 border-4 border-white shadow-2xl shadow-orange-100/50">MJ</div>
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Jasver Dela Cruz</h2>
-            <p className="text-slate-400 font-bold mt-1 uppercase text-[10px] tracking-widest">ID: 2024-008821</p>
+            {/* DYNAMIC AVATAR */}
+            <div className={`w-24 h-24 ${current.avatarBg} rounded-[2.5rem] mx-auto flex items-center justify-center text-3xl font-black ${userRole === "Admin" ? "text-white" : current.textColor} mb-6 border-4 border-white shadow-2xl shadow-slate-200/50`}>
+              {current.initials}
+            </div>
+            
+            {/* DYNAMIC NAME & ID */}
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight">{current.name}</h2>
+            <p className="text-slate-400 font-bold mt-1 uppercase text-[10px] tracking-widest">{current.id}</p>
+            
+            {userRole === "Admin" && (
+              <span className="inline-block mt-3 px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black rounded-full uppercase">Superuser Access</span>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -75,7 +109,6 @@ export default function Sidebar({ isOpen, onClose }) {
             ))}
           </div>
 
-          {/* Dynamic Logout Button */}
           <button 
             onClick={handleLogoutClick}
             className={`mt-auto py-5 rounded-[1.5rem] font-black text-sm transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95 ${
@@ -85,13 +118,9 @@ export default function Sidebar({ isOpen, onClose }) {
             }`}
           >
             {showConfirm ? (
-              <>
-                <AlertTriangle size={20} /> ARE YOU SURE? CLICK AGAIN
-              </>
+              <><AlertTriangle size={20} /> ARE YOU SURE? CLICK AGAIN</>
             ) : (
-              <>
-                <LogOut size={20}/> LOGOUT SESSION
-              </>
+              <><LogOut size={20}/> LOGOUT SESSION</>
             )}
           </button>
         </div>

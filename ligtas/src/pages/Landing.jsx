@@ -53,7 +53,9 @@ export default function Landing() {
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row justify-center gap-5">
-            <button className="bg-orange-500 hover:bg-orange-600 px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-orange-950/40 transition-all hover:-translate-y-1 cursor-pointer">
+            <button 
+            onClick={() => window.location.href = "/login"}
+            className="bg-orange-500 hover:bg-orange-600 px-10 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-orange-950/40 transition-all hover:-translate-y-1 cursor-pointer">
               Start Training
             </button>
             <button className="bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 px-10 py-4 rounded-2xl font-bold text-lg transition-all cursor-pointer">

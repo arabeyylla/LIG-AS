@@ -55,12 +55,13 @@ function App() {
         {/* Common Account Management Routes */}
         {/* These also use DashboardLayout to keep the Navbar/Sidebar visible */}
         <Route path="/edit-profile" element={
-          <DashboardLayout>
+        <DashboardLayout userRole="Admin"> {/* Change this to "Admin" to test Admin sidebar */}
             <EditProfile />
           </DashboardLayout>
         } />
+
         <Route path="/security" element={
-          <DashboardLayout>
+          <DashboardLayout userRole="Admin"> 
             <AccountSecurity />
           </DashboardLayout>
         } />

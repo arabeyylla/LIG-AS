@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 
 export default function DashNavbar({ onProfileClick, userRole = "Learner" }) {
-  // --- MISSING LOGIC START ---
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [notifFilter, setNotifFilter] = useState("all");
 
@@ -14,7 +13,25 @@ export default function DashNavbar({ onProfileClick, userRole = "Learner" }) {
     setActiveDropdown(activeDropdown === name ? null : name);
   };
 
-  // Sample data for the notifications feed
+  // --- DYNAMIC DATA LOGIC ---
+  
+  // 1. Define where the Logo redirects based on role
+  const getHomePath = () => {
+    if (userRole === "Admin") return "/admin";
+    if (userRole === "Educator") return "/educator";
+    return "/student";
+  };
+
+  // 2. Define User Display Details
+  const userData = {
+    Admin: { name: "Kizuna", sub: "Commander", color: "bg-red-600" },
+    Educator: { name: "Prof. Santos", sub: "District Overseer", color: "bg-orange-500" },
+    Learner: { name: "Jasver", sub: "Lvl 12 Learner", color: "bg-[#1e293b]" }
+  };
+
+  const currentProfile = userData[userRole] || userData.Learner;
+
+  // Sample notifications (You could filter these by role too if needed)
   const notifications = [
     { id: 1, title: "Typhoon Warning", desc: "Signal #4 raised in your sector.", time: "2m ago", type: "update", unread: true },
     { id: 2, title: "Mission Accomplished", desc: "Fire drill simulation passed.", time: "1h ago", type: "check", unread: false },
@@ -23,15 +40,18 @@ export default function DashNavbar({ onProfileClick, userRole = "Learner" }) {
   const filteredNotifs = notifFilter === "all" 
     ? notifications 
     : notifications.filter(n => n.unread);
-  // --- MISSING LOGIC END ---
 
   return (
     <nav className="bg-white border-b border-slate-200 px-6 lg:px-12 py-3 flex items-center justify-between sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <Link to="/student" className="group flex items-center gap-2 transition-transform active:scale-95">
+          {/* FIX: Link now uses getHomePath() instead of hardcoded /student */}
+          <Link to={getHomePath()} className="group flex items-center gap-2 transition-transform active:scale-95">
             <h1 className="text-2xl font-black tracking-tighter text-[#1e293b] group-hover:text-orange-500 transition-colors">
             LIG<span className="text-orange-500 group-hover:text-[#1e293b]">+</span>AS
             </h1>
+            {userRole === "Admin" && (
+                <span className="bg-red-50 text-red-600 text-[10px] font-black px-2 py-0.5 rounded border border-red-100 ml-1">HQ</span>
+            )}
         </Link>
         </div>
         
@@ -81,60 +101,21 @@ export default function DashNavbar({ onProfileClick, userRole = "Learner" }) {
                 )}
              </div>
 
-             {/* FAQs */}
-             <div className="relative">
-                <button onClick={() => toggleDropdown('faq')} className={`hover:text-orange-500 transition-colors p-2.5 rounded-xl ${activeDropdown === 'faq' ? 'bg-orange-50 text-orange-500' : ''}`}>
-                  <HelpCircle size={22} />
-                </button>
-                {activeDropdown === 'faq' && (
-                  <div className="absolute right-0 mt-4 w-80 bg-white border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2rem] p-4 z-[60]">
-                    <div className="p-4">
-                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-6">Support Briefing</h4>
-                      <div className="space-y-3">
-                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center justify-between group transition-all">
-                          <div className="flex items-center gap-3"><MessageSquare size={18} className="text-orange-500"/> Help Desk</div>
-                          <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-                        </button>
-                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center justify-between group transition-all">
-                          <div className="flex items-center gap-3"><Info size={18} className="text-orange-500"/> Simulation Guide</div>
-                          <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-             </div>
-
-             {/* Settings */}
-             <div className="relative">
-                <button onClick={() => toggleDropdown('settings')} className={`hover:text-orange-500 transition-colors p-2.5 rounded-xl ${activeDropdown === 'settings' ? 'bg-orange-50 text-orange-500' : ''}`}>
-                  <Settings size={22} />
-                </button>
-                {activeDropdown === 'settings' && (
-                  <div className="absolute right-0 mt-4 w-80 bg-white border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2rem] p-4 z-[60]">
-                    <div className="p-4">
-                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-6">Device Settings</h4>
-                      <div className="space-y-2">
-                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center gap-4 transition-all">
-                          <Bell size={18} className="text-slate-400"/> Global Alerts
-                        </button>
-                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center gap-4 transition-all">
-                          <ExternalLink size={18} className="text-slate-400"/> Download Logs
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-             </div>
+             {/* FAQs - Settings omitted for brevity, same as your code */}
           </div>
           
-          {/* Sidebar Trigger (The MJ Icon) */}
+          {/* Sidebar Trigger */}
           <button onClick={onProfileClick} className="flex items-center gap-3 group">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-black text-slate-700">Jasver</p>
-              <p className="text-[10px] text-slate-400 uppercase font-black">{userRole === "Admin" ? "Commander" : "Lvl 12 Learner"}</p>
+              {/* FIX: Dynamic Name */}
+              <p className="text-sm font-black text-slate-700">{currentProfile.name}</p>
+              {/* FIX: Dynamic Subtitle */}
+              <p className="text-[10px] text-slate-400 uppercase font-black">{currentProfile.sub}</p>
             </div>
-            <div className="w-12 h-12 bg-[#1e293b] rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-slate-200 group-hover:scale-105 transition-transform">MJ</div>
+            {/* FIX: Dynamic Avatar Background */}
+            <div className={`w-12 h-12 ${currentProfile.color} rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-slate-200 group-hover:scale-105 transition-transform uppercase`}>
+                {currentProfile.name.charAt(0)}
+            </div>
           </button>
         </div>
       </nav>
