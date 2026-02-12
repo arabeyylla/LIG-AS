@@ -101,7 +101,95 @@ export default function DashNavbar({ onProfileClick, userRole = "Learner" }) {
                 )}
              </div>
 
-             {/* FAQs - Settings omitted for brevity, same as your code */}
+             {/* FAQs */}
+
+             <div className="relative">
+
+                <button onClick={() => toggleDropdown('faq')} className={`hover:text-orange-500 transition-colors p-2.5 rounded-xl ${activeDropdown === 'faq' ? 'bg-orange-50 text-orange-500' : ''}`}>
+
+                  <HelpCircle size={22} />
+
+                </button>
+
+                {activeDropdown === 'faq' && (
+
+                  <div className="absolute right-0 mt-4 w-80 bg-white border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2rem] p-4 z-[60]">
+
+                    <div className="p-4">
+
+                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-6">Support Briefing</h4>
+
+                      <div className="space-y-3">
+
+                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center justify-between group transition-all">
+
+                          <div className="flex items-center gap-3"><MessageSquare size={18} className="text-orange-500"/> Help Desk</div>
+
+                          <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+
+                        </button>
+
+                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center justify-between group transition-all">
+
+                          <div className="flex items-center gap-3"><Info size={18} className="text-orange-500"/> Simulation Guide</div>
+
+                          <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
+
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                )}
+
+             </div>
+
+
+
+             {/* Settings */}
+
+             <div className="relative">
+
+                <button onClick={() => toggleDropdown('settings')} className={`hover:text-orange-500 transition-colors p-2.5 rounded-xl ${activeDropdown === 'settings' ? 'bg-orange-50 text-orange-500' : ''}`}>
+
+                  <Settings size={22} />
+
+                </button>
+
+                {activeDropdown === 'settings' && (
+
+                  <div className="absolute right-0 mt-4 w-80 bg-white border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.1)] rounded-[2rem] p-4 z-[60]">
+
+                    <div className="p-4">
+
+                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 mb-6">Device Settings</h4>
+
+                      <div className="space-y-2">
+
+                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center gap-4 transition-all">
+
+                          <Bell size={18} className="text-slate-400"/> Global Alerts
+
+                        </button>
+
+                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center gap-4 transition-all">
+
+                          <ExternalLink size={18} className="text-slate-400"/> Download Logs
+
+                        </button>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                )}
+
+             </div>
           </div>
           
           {/* Sidebar Trigger */}
