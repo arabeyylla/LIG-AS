@@ -26,7 +26,7 @@ export default function SignUp() {
       </div>
 
       {/* RIGHT SIDE: Equal Split Form Area */}
-      <div className="flex-1 flex items-center justify-center p-8 md:p-16 bg-white overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-8 md:p-8 bg-white overflow-y-auto">
         <div className="w-full max-w-md">
           <button
             type="button"
@@ -37,12 +37,12 @@ export default function SignUp() {
             Back
           </button>
 
-          <div className="mb-10">
+          <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 tracking-tight font-sans">Create Account</h2>
             <p className="text-gray-500 mt-2">Enter your tactical details.</p>
           </div>
 
-          <form onSubmit={(e) => e.preventDefault()} className="space-y-5">
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
             {/* Names Row */}
             <div className="grid grid-cols-2 gap-4">
               <div>
