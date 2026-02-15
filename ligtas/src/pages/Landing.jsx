@@ -1,7 +1,22 @@
 import Navbar from "../components/layout/Navbar";
-import {Gamepad2, Users, Trophy, ChevronRight, Bell, Info, Settings, AlertTriangle } from "lucide-react"; // Import icons
+import React, { useState, useEffect } from 'react';
+import Landingpage from "../assets/LIGTAS Landing.png";
+import game from "../assets/game.png";
+import failed from "../assets/failed.png";
+import {Gamepad2, Users, Trophy, ChevronRight, Bell, Info, Settings, AlertTriangle, ChevronLeft } from "lucide-react"; // Import icons
 
 export default function Landing() {
+
+  // --- CAROUSEL LOGIC ---
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const gameImages = [
+    { url: Landingpage, title: "RPG Exploration" },
+    { url: game, title: "Survival Mechanics" },
+    { url: failed, title: "Crisis Management" }
+  ];
+
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % gameImages.length);
+  const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? gameImages.length - 1 : prev - 1));
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -48,7 +63,7 @@ export default function Landing() {
           </h1>
 
           <p className="mt-8 text-xl text-gray-500 max-w-2xl mx-auto font-medium leading-relaxed">
-            LIG<span className="text-orange-500">+</span>AS is a localized RPG simulation designed to build muscle
+            LIG<span className="text-orange-500">+</span>AS is a localized low-poly simulation designed to build muscle
             memory for disaster survival.
           </p>
 
@@ -61,6 +76,70 @@ export default function Landing() {
             <button className="bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 px-10 py-4 rounded-2xl font-bold text-lg transition-all cursor-pointer">
               Download APK
             </button>
+          </div>
+        </div>
+      </section>
+
+      {/* NEW: ABOUT THE GAME SECTION */}
+      <section className="py-24 bg-white">
+        <div className="max-w-8xl mx-auto px-6 md:px-40">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            
+            {/* LEFT: IMAGE CAROUSEL */}
+            <div className="relative group">
+              <div className="relative h-[450px] overflow-hidden rounded-[2.5rem] shadow-2xl border-8 border-gray-100">
+                {gameImages.map((img, index) => (
+                  <div
+                    key={index}
+                    className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                      index === currentSlide ? "opacity-100 scale-100" : "opacity-0 scale-110"
+                    }`}
+                  >
+                    <img src={img.url} alt={img.title} className="w-full h-full object-cover" />
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-10">
+                       <p className="text-white font-black text-xl uppercase tracking-tighter">{img.title}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Navigation Buttons */}
+              <button onClick={prevSlide} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 p-4 rounded-2xl shadow-xl hover:bg-orange-500 hover:text-white transition-all z-20">
+                <ChevronLeft size={24} />
+              </button>
+              <button onClick={nextSlide} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 p-4 rounded-2xl shadow-xl hover:bg-orange-500 hover:text-white transition-all z-20">
+                <ChevronRight size={24} />
+              </button>
+            </div>
+
+            {/* RIGHT: DESCRIPTION */}
+            <div className="space-y-8">
+              <div className="inline-block px-4 py-1.5 bg-orange-100 text-orange-600 rounded-full text-xs font-black uppercase tracking-widest">
+                The LIG+AS Experience
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tighter leading-tight">
+                Not Just a Game. <br />
+                <span className="text-orange-500">A Survival Lifeline.</span>
+              </h2>
+              <p className="text-gray-500 text-lg leading-relaxed font-medium">
+                Step into a low-poly simulation where every choice dictates your survival. LIG+AS blends traditional disaster education with immersive localized storytelling.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-6">
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <h4 className="font-black text-slate-800 mb-2">Localized Maps</h4>
+                  <p className="text-sm text-gray-500">Simulations based on similar Philippine geography and layout.</p>
+                </div>
+                <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <h4 className="font-black text-slate-800 mb-2">Disaster Physics</h4>
+                  <p className="text-sm text-gray-500">Realistic fire spread, flood levels, and structural earthquake damage.</p>
+                </div>
+              </div>
+
+              <button className="flex items-center gap-3 font-black text-slate-800 hover:text-orange-500 transition-colors group">
+                LEARN MORE ABOUT GAMEPLAY <ChevronRight className="group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
           </div>
         </div>
       </section>
