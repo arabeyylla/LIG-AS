@@ -5,31 +5,25 @@ import {
   MessageSquare, ChevronRight, Info, Shield, ExternalLink 
 } from "lucide-react";
 
-export default function DashNavbar({ onProfileClick, userRole = "Learner" }) {
+export default function DashNavbar({ onProfileClick, userRole = "Learner", userName }) {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [notifFilter, setNotifFilter] = useState("all");
 
   const toggleDropdown = (name) => {
     setActiveDropdown(activeDropdown === name ? null : name);
   };
-
-  // --- DYNAMIC DATA LOGIC ---
-  
-  // 1. Define where the Logo redirects based on role
-  const getHomePath = () => {
-    if (userRole === "Admin") return "/admin";
-    if (userRole === "Educator") return "/educator";
-    return "/student";
+const getHomePath = () => {
+    const rolePaths = { Admin: "/admin", Educator: "/educator", Learner: "/learner" };
+    return rolePaths[userRole] || "/learner";
   };
 
-  // 2. Define User Display Details
-  const userData = {
-    Admin: { name: "Kizuna", sub: "Commander", color: "bg-red-600" },
-    Educator: { name: "Prof. Santos", sub: "District Overseer", color: "bg-orange-500" },
-    Learner: { name: "Jasver", sub: "Lvl 12 Learner", color: "bg-[#1e293b]" }
+  const roleStyles = {
+    Admin: { sub: "Commander", color: "bg-red-600" },
+    Educator: { sub: "District Overseer", color: "bg-orange-500" },
+    Learner: { sub: "Lvl 12 Learner", color: "bg-[#1e293b]" }
   };
 
-  const currentProfile = userData[userRole] || userData.Learner;
+  const style = roleStyles[userRole] || roleStyles.Learner;
 
   // Sample notifications (You could filter these by role too if needed)
   const notifications = [
@@ -194,17 +188,14 @@ export default function DashNavbar({ onProfileClick, userRole = "Learner" }) {
           
           {/* Sidebar Trigger */}
           <button onClick={onProfileClick} className="flex items-center gap-3 group">
-            <div className="text-right hidden sm:block">
-              {/* FIX: Dynamic Name */}
-              <p className="text-sm font-black text-slate-700">{currentProfile.name}</p>
-              {/* FIX: Dynamic Subtitle */}
-              <p className="text-[10px] text-slate-400 uppercase font-black">{currentProfile.sub}</p>
-            </div>
-            {/* FIX: Dynamic Avatar Background */}
-            <div className={`w-12 h-12 ${currentProfile.color} rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-slate-200 group-hover:scale-105 transition-transform uppercase`}>
-                {currentProfile.name.charAt(0)}
-            </div>
-          </button>
+          <div className="text-right hidden sm:block">
+            <p className="text-sm font-black text-slate-700">{userName}</p>
+            <p className="text-[10px] text-slate-400 uppercase font-black">{style.sub}</p>
+          </div>
+          <div className={`w-12 h-12 ${style.color} rounded-2xl flex items-center justify-center text-white font-black shadow-lg uppercase`}>
+            {userName?.charAt(0)}
+          </div>
+        </button>
         </div>
       </nav>
   );

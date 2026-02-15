@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardLayout from "./components/layout/DashboardLayout";
+import GameplayOverview from "./pages/GameplayOverview";
 
 // Core Pages
 import Landing from "./pages/Landing";
@@ -25,8 +26,10 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
+        <Route path="/gameplay" element={<GameplayOverview />} />
+
         {/* Student Routes */}
-        <Route path="/student" element={
+        <Route path="/learner" element={
           <DashboardLayout userRole="Learner">
             <StudentDashboard />
           </DashboardLayout>

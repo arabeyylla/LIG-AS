@@ -1,59 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Shield, LogOut, ChevronRight, X, AlertTriangle, Settings} from "lucide-react";
+import { User, Shield, LogOut, ChevronRight, X, AlertTriangle, Settings } from "lucide-react";
+import { supabase } from '../../lib/supabaseClient';
 
-export default function Sidebar({ isOpen, onClose, userRole = "Learner" }) {
+export default function Sidebar({ isOpen, onClose, userRole, userInfo }) {
   const navigate = useNavigate();
   const [showConfirm, setShowConfirm] = useState(false);
 
+  // Reset confirmation when sidebar closes
   useEffect(() => {
     if (!isOpen) setShowConfirm(false);
   }, [isOpen]);
 
-  const handleLogoutClick = () => {
+  const handleLogoutClick = async () => {
     if (!showConfirm) {
       setShowConfirm(true);
+      // Auto-reset confirm button after 3 seconds if not clicked
       setTimeout(() => setShowConfirm(false), 3000);
     } else {
-      localStorage.removeItem('userToken'); 
-      localStorage.removeItem('userRole');
+      await supabase.auth.signOut();
+      localStorage.clear(); 
       onClose();
       navigate('/', { replace: true });
     }
   };
 
-  // --- DYNAMIC DATA LOGIC ---
-  const userData = {
-    Admin: { 
-      name: "Kizuna Admin", 
-      id: "HQ-SYS-9901", 
-      initials: "KA",
-      avatarBg: "bg-red-600",
-      textColor: "text-red-600"
-    },
-    Educator: { 
-      name: "Prof. Santos", 
-      id: "EDU-2024-552", 
-      initials: "PS",
-      avatarBg: "bg-orange-500",
-      textColor: "text-orange-600"
-    },
-    Learner: { 
-      name: "Jasver Dela Cruz", 
-      id: "ID: 2024-008821", 
-      initials: "MJ",
-      avatarBg: "bg-orange-100",
-      textColor: "text-orange-600"
-    }
+  // UI styling based on role
+  const roleStyles = {
+    Admin: { avatarBg: "bg-red-600", textColor: "text-red-600", sub: "Commander" },
+    Educator: { avatarBg: "bg-orange-500", textColor: "text-orange-600", sub: "District Overseer" },
+    Learner: { avatarBg: "bg-orange-100", textColor: "text-orange-600", sub: "Lvl 12 Learner" }
   };
 
-  const current = userData[userRole] || userData.Learner;
+  const style = roleStyles[userRole] || roleStyles.Learner;
 
-  // You can also change menu items based on role
   const menuItems = [
     { icon: <User size={20}/>, label: "Edit Profile", sub: "Personal info & Avatar", path: "/edit-profile" },
     { icon: <Shield size={20}/>, label: "Account Security", sub: "Privacy & Data", path: "/security" },
-    // Only show system settings to Admin
     ...(userRole === "Admin" ? [{ icon: <Settings size={20}/>, label: "System Config", sub: "Global Parameters", path: "/config" }] : []),
   ];
 
@@ -65,21 +48,21 @@ export default function Sidebar({ isOpen, onClose, userRole = "Learner" }) {
       )}
 
       {/* Drawer */}
-      <div className={`fixed inset-y-0 right-0 w-96 bg-white shadow-2xl z-[100] transition-transform duration-500 ease-in-out transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="p-12 flex flex-col h-full overflow-y-auto">
+      <div className={`fixed inset-y-0 right-0 w-80 md:w-96 bg-white shadow-2xl z-[100] transition-transform duration-500 ease-in-out transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+        <div className="p-8 md:p-12 flex flex-col h-full overflow-y-auto">
           <button onClick={onClose} className="self-end text-slate-300 hover:text-slate-800 mb-6 transition-colors">
             <X size={32} />
           </button>
           
           <div className="text-center mb-12">
             {/* DYNAMIC AVATAR */}
-            <div className={`w-24 h-24 ${current.avatarBg} rounded-[2.5rem] mx-auto flex items-center justify-center text-3xl font-black ${userRole === "Admin" ? "text-white" : current.textColor} mb-6 border-4 border-white shadow-2xl shadow-slate-200/50`}>
-              {current.initials}
+            <div className={`w-24 h-24 ${style.avatarBg} rounded-[2.5rem] mx-auto flex items-center justify-center text-3xl font-black ${userRole === "Admin" ? "text-white" : style.textColor} mb-6 border-4 border-white shadow-2xl shadow-slate-200/50 uppercase`}>
+              {userInfo?.initials || "??"}
             </div>
             
             {/* DYNAMIC NAME & ID */}
-            <h2 className="text-2xl font-black text-slate-800 tracking-tight">{current.name}</h2>
-            <p className="text-slate-400 font-bold mt-1 uppercase text-[10px] tracking-widest">{current.id}</p>
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight">{userInfo?.name || "Tactical User"}</h2>
+            <p className="text-slate-400 font-bold mt-1 uppercase text-[10px] tracking-widest">{userInfo?.id}</p>
             
             {userRole === "Admin" && (
               <span className="inline-block mt-3 px-3 py-1 bg-red-50 text-red-600 text-[10px] font-black rounded-full uppercase">Superuser Access</span>
@@ -118,7 +101,7 @@ export default function Sidebar({ isOpen, onClose, userRole = "Learner" }) {
             }`}
           >
             {showConfirm ? (
-              <><AlertTriangle size={20} /> ARE YOU SURE? CLICK AGAIN</>
+              <><AlertTriangle size={20} /> CONFIRM LOGOUT?</>
             ) : (
               <><LogOut size={20}/> LOGOUT SESSION</>
             )}

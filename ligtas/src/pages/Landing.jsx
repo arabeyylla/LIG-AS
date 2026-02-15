@@ -1,8 +1,10 @@
 import Navbar from "../components/layout/Navbar";
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabaseClient';
 import Landingpage from "../assets/LIGTAS Landing.png";
 import game from "../assets/game.png";
 import failed from "../assets/failed.png";
+import { Link } from 'react-router-dom';
 import {Gamepad2, Users, Trophy, ChevronRight, Bell, Info, Settings, AlertTriangle, ChevronLeft } from "lucide-react"; // Import icons
 
 export default function Landing() {
@@ -136,9 +138,9 @@ export default function Landing() {
                 </div>
               </div>
 
-              <button className="flex items-center gap-3 font-black text-slate-800 hover:text-orange-500 transition-colors group">
+              <Link to="/gameplay" className="flex items-center gap-3 font-black text-slate-800 hover:text-orange-500 transition-colors group">
                 LEARN MORE ABOUT GAMEPLAY <ChevronRight className="group-hover:translate-x-1 transition-transform" />
-              </button>
+              </Link>
             </div>
           </div>
         </div>

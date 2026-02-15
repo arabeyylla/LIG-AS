@@ -1,60 +1,91 @@
 import { useState } from "react";
-import { ArrowLeft, ChevronDown, User, Lock } from "lucide-react"; 
+import { ArrowLeft, ChevronDown, User, Lock, Loader2 } from "lucide-react"; 
+import { supabase } from "../lib/supabaseClient";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
-  const [role, setRole] = useState("student");
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleLogin = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+
+  let loginEmail = email; // This variable will hold the final email used for auth
+
+  // 1. Step: Check if the input is a Username (doesn't contain '@')
+  if (!email.includes("@")) {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', email)
+      .single();
+
+    if (profileError || !profile) {
+      setError("Username not found.");
+      setLoading(false);
+      return;
+    }
+
+    // Since we can't get the email directly from 'profiles' easily due to security,
+    // we use a RPC call or assume the username is the lookup key.
+    // NOTE: For this to work perfectly, your 'profiles' table needs an 'email' column.
+    
+    // BETTER APPROACH: Search for the email linked to this username
+    const { data: userData, error: userError } = await supabase
+      .rpc('get_email_by_username', { input_username: email });
+
+    if (userError || !userData) {
+      setError("Could not retrieve email for this username.");
+      setLoading(false);
+      return;
+    }
+    loginEmail = userData;
+  }
+
+  // 2. Attempt Supabase Login with the resolved email
+  const { data, error: authError } = await supabase.auth.signInWithPassword({
+    email: loginEmail,
+    password,
+  });
+
+  if (authError) {
+    setError("Invalid credentials.");
+    setLoading(false);
+    return;
+  }
+
+  const userRole = data.user?.user_metadata?.role || "Learner";
+  navigate(`/${userRole.toLowerCase()}`);
+  setLoading(false);
+};
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-white">
       
-      {/* LEFT SIDE: Darkened Stealth Poly Pattern */}
+      {/* LEFT SIDE: (Keep your existing geometry/branding code) */}
       <div className="hidden md:flex md:w-1/2 bg-[#0a1120] relative overflow-hidden items-center justify-center p-12">
-        
-        {/* Base Midnight Layer */}
         <div className="absolute inset-0 bg-[#0a1120]"></div>
-        
-        {/* Stealth Shard 1: Deep Navy Plate */}
-        <div 
-          className="absolute inset-0 bg-blue-900/10" 
-          style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
-        ></div>
-        
-        {/* Stealth Shard 2: Diamond Center (Shadow Definition) */}
-        <div 
-          className="absolute inset-0 bg-black/30" 
-          style={{ clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }}
-        ></div>
-
-        {/* Stealth Shard 3: Bottom Right Deep Focus */}
-        <div 
-          className="absolute inset-0 bg-blue-500/5" 
-          style={{ clipPath: 'polygon(100% 100%, 100% 40%, 40% 100%)' }}
-        ></div>
-
-        {/* Stealth Shard 4: Sharp Accent (Very Low Opacity) */}
-        <div 
-          className="absolute inset-0 bg-white/5" 
-          style={{ clipPath: 'polygon(100% 0, 60% 0, 100% 20%)' }}
-        ></div>
-
-        {/* Branding Overlay */}
+        <div className="absolute inset-0 bg-blue-900/10" style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}></div>
+        <div className="absolute inset-0 bg-black/30" style={{ clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }}></div>
         <div className="relative z-10 text-center">
-          <h1 className="text-7xl font-black tracking-tighter text-white mb-4 drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)]">
+          <h1 className="text-7xl font-black tracking-tighter text-white mb-4">
             LIG<span className="text-orange-500">+</span>AS
           </h1>
-          <p className="text-gray-500 text-xl font-medium max-w-sm drop-shadow-md">
-            Master the simulation. <br/> Prepare for the real world.
-          </p>
+          <p className="text-gray-500 text-xl font-medium max-w-sm">Master the simulation.</p>
         </div>
       </div>
 
-      {/* RIGHT SIDE: Clean White Form Area */}
+      {/* RIGHT SIDE: Form Area */}
       <div className="flex-1 flex items-center justify-center p-8 md:p-16 bg-white">
         <div className="w-full max-w-md">
-          {/* Back Button */}
           <button
-            type="button"
-            onClick={() => window.location.href = "/"}
+            onClick={() => navigate("/")}
             className="mb-8 flex items-center text-gray-400 hover:text-orange-500 transition-colors cursor-pointer group"
           >
             <ArrowLeft size={20} className="mr-2 group-hover:-translate-x-1 transition-transform" />
@@ -62,27 +93,35 @@ export default function Login() {
           </button>
 
           <div className="mb-10">
-            <h2 className="text-3xl font-bold text-gray-900 font-sans tracking-tight">Welcome Back</h2>
+            <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Welcome Back</h2>
             <p className="text-gray-500 mt-2">Access your training modules.</p>
           </div>
 
-          <form onSubmit={(e) => { e.preventDefault(); window.location.href=`/${role}`; }} className="space-y-5">
-            
-            {/* Username Input */}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Username</label>
-              <div className="relative group">
-                <span className="absolute inset-y-0 left-4 flex items-center text-gray-400 group-focus-within:text-orange-500 transition-colors">
-                  <User size={18} />
-                </span>
-                <input
-                  type="text"
-                  placeholder="Your username"
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white outline-none transition-all shadow-sm"
-                  required
-                />
-              </div>
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm font-bold rounded-r-xl">
+              {error}
             </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            {/* Updated Input Label & Placeholder */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Username or Email</label>
+            <div className="relative group">
+              <span className="absolute inset-y-0 left-4 flex items-center text-gray-400 group-focus-within:text-orange-500 transition-colors">
+                <User size={18} />
+              </span>
+              <input
+                type="text" // Changed from email to text
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Username or email"
+                className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm"
+                required
+              />
+            </div>
+          </div>
 
             {/* Password Input */}
             <div>
@@ -93,40 +132,27 @@ export default function Login() {
                 </span>
                 <input
                   type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white outline-none transition-all shadow-sm"
+                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm"
                   required
                 />
               </div>
             </div>
 
-            {/* Role Select */}
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Access Level</label>
-              <div className="relative group">
-                <select
-                  className="w-full p-4 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none bg-gray-50 focus:bg-white cursor-pointer appearance-none transition-all shadow-sm"
-                  onChange={(e) => setRole(e.target.value)}
-                >
-                  <option value="student">Student User</option>
-                  <option value="educator">Educator / Faculty</option>
-                  <option value="admin">System Administrator</option>
-                </select>
-                <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-orange-500">
-                  <ChevronDown size={20} />
-                </div>
-              </div>
-            </div>
-
-            <button className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg shadow-orange-100 transition-all active:scale-[0.98] cursor-pointer">
-              LOGIN
+            <button 
+              disabled={loading}
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-2xl font-bold text-lg shadow-lg transition-all active:scale-[0.98] flex justify-center items-center"
+            >
+              {loading ? <Loader2 className="animate-spin" /> : "LOGIN"}
             </button>
           </form>
 
           <p className="mt-10 text-center text-gray-500">
             Don't have an account?{" "}
             <span 
-              onClick={() => window.location.href = "/signup"}
+              onClick={() => navigate("/signup")}
               className="text-orange-500 font-bold cursor-pointer hover:underline"
             >
               Sign Up
