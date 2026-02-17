@@ -1,13 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, Users, Activity, Settings, 
   Download, MessageSquare, Check, X, 
   Eye, MoreVertical, Search, Power,
-  FileText, Clock, AlertTriangle, Send
+  FileText, Clock, AlertTriangle, Send, 
+  UserPlus, ShieldAlert, Loader2
 } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 export default function AdminDashboard() {
   const [showLogs, setShowLogs] = useState(false);
+  const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+
+  // Real-time Data States
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  async function fetchUsers() {
+    try {
+      setLoading(true);
+      console.log("Admin: Starting fetch from 'profiles' table...");
+
+      // Get current session to verify YOU are logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Current Admin UUID:", session?.user?.id);
+
+      const { data, error, status, statusText } = await supabase
+        .from('profiles') 
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Supabase Error Object:", error);
+        throw error;
+      }
+
+      console.log("Supabase Response Code:", status, statusText);
+      console.log("Raw Data Received:", data);
+
+      if (data.length === 0) {
+        console.warn("Table is connected, but returned 0 rows. Check if RLS is blocking data or if table is empty.");
+      }
+
+      setUsers(data || []);
+    } catch (err) {
+      console.error("Dashboard Fetch Failed:", err.message);
+      setUsers([]); 
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Filter Logic
+  const filteredUsers = users.filter(user => {
+    if (filter === 'all') return true;
+    if (filter === 'pending') return user.status === 'Pending Review';
+    if (filter === 'denied') return user.status === 'Denied';
+    return true;
+  });
 
   return (
     <div className="max-w-[1800px] mx-auto py-4 px-6 lg:px-0">
@@ -31,25 +86,61 @@ export default function AdminDashboard() {
           </div>
 
           {/* USER MANAGEMENT APPROVALS */}
-          <div className="bg-white rounded-[3.5rem] border border-slate-100 p-10 lg:p-10 shadow-sm">
-            <div className="flex items-center gap-4 mb-10">
-              <Users className="text-indigo-500" size={32} />
-              <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">User Management</h3>
+          <div className="bg-white rounded-[3.5rem] border border-slate-100 p-10 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
+              <div className="flex items-center gap-4">
+                <Users className="text-indigo-500" size={32} />
+                <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">User Management</h3>
+              </div>
+
+              {/* FILTER TABS */}
+              <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1">
+                {['all', 'pending', 'denied'].map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setFilter(tab)}
+                    className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                      filter === tab 
+                      ? 'bg-white text-slate-800 shadow-sm' 
+                      : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              
+              <button 
+                onClick={() => setShowCreateAdmin(true)}
+                className="flex items-center gap-2 bg-slate-900 hover:bg-orange-500 text-white px-6 py-3 rounded-2xl font-black text-xs transition-all shadow-lg"
+              >
+                <UserPlus size={18} /> ADD NEW ADMIN
+              </button>
             </div>
             
             <div className="space-y-6">
-              <UserRequestRow 
-                name="Juan Educator" 
-                email="juan@educator.edu.ph" 
-                role="Educator" 
-                status="Pending Review" 
-              />
-              <UserRequestRow 
-                name="Maria Learner" 
-                email="student2024@learner.edu.ph" 
-                role="Learner" 
-                status="Verified" 
-              />
+              {loading ? (
+                <div className="flex flex-col items-center py-20 text-slate-400 gap-4">
+                  <Loader2 className="animate-spin" size={40} />
+                  <p className="font-bold">Syncing with Supabase...</p>
+                </div>
+              ) : filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => (
+                  <UserRequestRow 
+                    key={user.id}
+                    id={user.id}
+                    name={`${user.first_name || ''} ${user.last_name || ''}`}
+                    email={user.email} 
+                    role={user.role} 
+                    status={user.status}
+                    refresh={fetchUsers}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-20 bg-slate-50 rounded-[2.5rem] border-2 border-dashed border-slate-100">
+                   <p className="text-slate-400 font-bold">No users found in "{filter}" category.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -129,6 +220,7 @@ export default function AdminDashboard() {
 
       {/* SYSTEM LOGS MODAL */}
       {showLogs && <SystemLogsModal onClose={() => setShowLogs(false)} />}
+        {showCreateAdmin && <CreateAdminModal onClose={() => setShowCreateAdmin(false)} onCreated={fetchUsers} />}
     </div>
   );
 }
@@ -180,21 +272,104 @@ function StatCard({ label, value, subValue, status, trend }) {
   ); 
 }
 
-function UserRequestRow({ name, email, role, status }) {
-  const isPending = status === "Pending Review";
+function CreateAdminModal({ onClose }) {
+  const [loading, setLoading] = useState(false);
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    // Simulate API Call - Here you'd use supabase.auth.admin.createUser
+    setTimeout(() => {
+      setLoading(false);
+      alert("Admin Account Provisioned Successfully");
+      onClose();
+    }, 1500);
+  };
+
   return (
-    <div className="flex flex-col xl:flex-row xl:items-center justify-between p-8 bg-slate-50 hover:bg-white rounded-[2.5rem] border-2 border-transparent hover:border-slate-100 transition-all group">
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[250] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[3.5rem] w-full max-w-lg p-10 shadow-2xl relative animate-in zoom-in-95 duration-200">
+        <button onClick={onClose} className="absolute right-10 top-10 p-2 text-slate-300 hover:text-slate-800">
+          <X size={24} />
+        </button>
+        
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-14 h-14 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center">
+            <ShieldAlert size={28} />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Create Authority</h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Internal Admin Account</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+             <input type="text" placeholder="First Name" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-red-500 rounded-2xl font-bold outline-none transition-all" required />
+             <input type="text" placeholder="Last Name" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-red-500 rounded-2xl font-bold outline-none transition-all" required />
+          </div>
+          <input type="email" placeholder="Admin Email" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-red-500 rounded-2xl font-bold outline-none transition-all" required />
+          <input type="password" placeholder="System Password" className="w-full p-4 bg-slate-50 border-2 border-transparent focus:border-red-500 rounded-2xl font-bold outline-none transition-all" required />
+          
+          <div className="bg-red-50 p-4 rounded-2xl border border-red-100 mb-4">
+            <p className="text-[10px] text-red-600 font-bold leading-tight">
+              NOTICE: This account will have full bypass permissions and access to the System Control Panel. 
+            </p>
+          </div>
+
+          <button 
+            type="submit"
+            disabled={loading}
+            className="w-full bg-slate-900 hover:bg-red-600 text-white py-5 rounded-2xl font-black transition-all flex items-center justify-center gap-3"
+          >
+            {loading ? <Loader2 className="animate-spin" /> : "CONFIRM & CREATE ACCOUNT"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function UserRequestRow({ id, name, email, role, status, refresh }) {
+  // Define the variables that the UI depends on
+  const isPending = status === "Pending Review";
+  const isDenied = status === "Denied";
+
+  const handleUpdateStatus = async (newStatus) => {
+    try {
+      console.log(`Updating user ${id} to ${newStatus}...`);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: newStatus })
+        .eq('id', id);
+
+      if (error) throw error;
+      console.log("Update successful!");
+      refresh(); // This re-fetches the list so the UI updates
+    } catch (err) {
+      console.error("Update failed:", err.message);
+      alert("Action failed: " + err.message);
+    }
+  };
+
+  return (
+    <div className={`flex flex-col xl:flex-row xl:items-center justify-between p-8 rounded-[2.5rem] border-2 transition-all group ${
+      isDenied ? 'bg-red-50/30 border-red-50' : 'bg-slate-50 border-transparent hover:bg-white hover:border-slate-100'
+    }`}>
       <div className="flex items-center gap-6 mb-4 xl:mb-0">
-        <div className="w-16 h-16 rounded-2xl bg-slate-200 flex items-center justify-center text-slate-500">
+        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center ${isDenied ? 'bg-red-100 text-red-500' : 'bg-slate-200 text-slate-500'}`}>
            <Users size={28} />
         </div>
         <div>
           <div className="flex items-center gap-3">
             <h5 className="font-black text-slate-800 text-lg">{name}</h5>
-            <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase ${role === 'Educator' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'}`}>
+            <span className={`text-[10px] font-black px-3 py-1 rounded-lg uppercase ${
+              role === 'Educator' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-600'
+            }`}>
               {role}
             </span>
             {isPending && <span className="bg-yellow-100 text-yellow-700 text-[10px] font-black px-3 py-1 rounded-lg uppercase">Pending Review</span>}
+            {isDenied && <span className="bg-red-100 text-red-700 text-[10px] font-black px-3 py-1 rounded-lg uppercase">Denied</span>}
           </div>
           <p className="text-sm text-slate-400 font-bold">{email}</p>
         </div>
@@ -203,14 +378,34 @@ function UserRequestRow({ name, email, role, status }) {
       <div className="flex items-center gap-4">
         {isPending ? (
           <>
-            <button className="flex items-center gap-2 bg-indigo-500 text-white px-6 py-3 rounded-xl font-black text-xs hover:bg-indigo-600 transition-all shadow-lg shadow-indigo-500/20">
+            <button className="flex items-center gap-2 bg-indigo-500 text-white px-6 py-3 rounded-xl font-black text-xs hover:bg-indigo-600 shadow-lg shadow-indigo-500/20">
               <Eye size={16}/> VIEW ID
             </button>
-            <button className="p-3 bg-teal-500 text-white rounded-xl hover:bg-teal-600 shadow-lg shadow-teal-500/20"><Check size={20}/></button>
-            <button className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/20"><X size={20}/></button>
+            <button 
+              onClick={() => handleUpdateStatus('Verified')}
+              className="p-3 bg-teal-500 text-white rounded-xl hover:bg-teal-600 shadow-lg shadow-teal-500/20"
+            >
+              <Check size={20}/>
+            </button>
+            <button 
+              onClick={() => handleUpdateStatus('Denied')}
+              className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/20"
+            >
+              <X size={20}/>
+            </button>
           </>
         ) : (
-          <button className="p-4 text-slate-300 hover:text-slate-800"><MoreVertical size={24}/></button>
+          <div className="flex gap-2">
+            {isDenied && (
+               <button 
+                 onClick={() => handleUpdateStatus('Pending Review')}
+                 className="text-[10px] font-black text-slate-400 uppercase hover:text-slate-800 px-4"
+               >
+                 Re-evaluate
+               </button>
+            )}
+            <button className="p-4 text-slate-300 hover:text-slate-800"><MoreVertical size={24}/></button>
+          </div>
         )}
       </div>
     </div>
