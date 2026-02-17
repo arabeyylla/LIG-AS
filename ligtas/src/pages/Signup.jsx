@@ -29,11 +29,17 @@ const handleSignUp = async (e) => {
   setLoading(true);
   setError(null);
 
+  // 1. Check for password mismatch before calling the API
   if (formData.password !== formData.confirmPassword) {
-    setError("Passwords do not match.");
+    const mismatchMsg = "Passwords do not match.";
+    console.error("[SignUp Error]: Verification failed", mismatchMsg);
+    setError(mismatchMsg);
     setLoading(false);
     return;
   }
+
+  // 2. Pre-flight log (Optional: remove in production)
+  console.log("[SignUp Attempt]: Initializing registration for", formData.email);
 
   const { data, error: authError } = await supabase.auth.signUp({
     email: formData.email,
@@ -49,10 +55,18 @@ const handleSignUp = async (e) => {
   });
 
   if (authError) {
+    // 3. Log the specific Supabase error
+    console.error("[SignUp Error]: Supabase Auth failed", {
+      message: authError.message,
+      status: authError.status,
+      code: authError.code
+    });
+    
     setError(authError.message);
     setLoading(false);
   } else {
-    // INSTEAD OF ALERT, SHOW MODAL
+    // 4. Log Success
+    console.log("[SignUp Success]: User created successfully", data.user?.id);
     setLoading(false);
     setShowSuccessModal(true);
   }
@@ -60,14 +74,21 @@ const handleSignUp = async (e) => {
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-white">
-      {/* LEFT SIDE: (Keep your existing geometry code) */}
+       {/* LEFT SIDE: Inverted Stealth Poly Pattern (Matches Login Geometry) */}
       <div className="hidden md:flex md:w-1/2 bg-[#0a1120] relative overflow-hidden items-center justify-center p-12">
-          {/* ... existing shards ... */}
-          <div className="relative z-10 text-center">
-            <h1 className="text-7xl font-black tracking-tighter text-white mb-4">
-              LIG<span className="text-orange-500">+</span>AS
-            </h1>
-          </div>
+        <div className="absolute inset-0 bg-[#0a1120]"></div>
+        <div className="absolute inset-0 bg-black/20" style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}></div>
+        <div className="absolute inset-0 bg-white/[0.03]" style={{ clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)' }}></div>
+        <div className="absolute inset-0 bg-blue-900/10" style={{ clipPath: 'polygon(100% 100%, 100% 40%, 40% 100%)' }}></div>
+        <div className="absolute inset-0 bg-black/40" style={{ clipPath: 'polygon(100% 0, 60% 0, 100% 20%)' }}></div>
+        <div className="relative z-10 text-center">
+          <h1 className="text-7xl font-black tracking-tighter text-white mb-4 drop-shadow-[0_5px_15px_rgba(0,0,0,0.8)]">
+            LIG<span className="text-orange-500">+</span>AS
+          </h1>
+          <p className="text-gray-500 text-xl font-medium max-w-sm drop-shadow-md">
+            Join the simulation. <br/> Start your survival journey.
+          </p>
+        </div>
       </div>
 
       {/* RIGHT SIDE: Form Area */}
@@ -81,7 +102,7 @@ const handleSignUp = async (e) => {
 
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Create Account</h2>
-            <p className="text-gray-500 mt-2">Enter your tactical details.</p>
+            <p className="text-gray-500 mt-2">Enter your profile details.</p>
           </div>
 
           {/* Error Message Display */}

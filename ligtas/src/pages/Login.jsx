@@ -16,59 +16,61 @@ export default function Login() {
   setLoading(true);
   setError(null);
 
-  let loginEmail = email; // This variable will hold the final email used for auth
+  let loginEmail = email; 
 
-  // 1. Step: Check if the input is a Username (doesn't contain '@')
+  // 1. Log the start of the process
+  console.log("[Login Attempt]: Initiating for identity:", email);
+
+  // Check if input is a username or email
   if (!email.includes("@")) {
+    console.log("[Login Debug]: Input detected as username. Fetching associated email...");
+    
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('email') 
       .eq('username', email)
       .single();
 
     if (profileError || !profile) {
+      console.error("[Login Error]: Username resolution failed", profileError);
       setError("Username not found.");
       setLoading(false);
       return;
     }
 
-    // Since we can't get the email directly from 'profiles' easily due to security,
-    // we use a RPC call or assume the username is the lookup key.
-    // NOTE: For this to work perfectly, your 'profiles' table needs an 'email' column.
-    
-    // BETTER APPROACH: Search for the email linked to this username
-    const { data: userData, error: userError } = await supabase
-      .rpc('get_email_by_username', { input_username: email });
-
-    if (userError || !userData) {
-      setError("Could not retrieve email for this username.");
-      setLoading(false);
-      return;
-    }
-    loginEmail = userData;
+    loginEmail = profile.email;
+    console.log("[Login Debug]: Username resolved to:", loginEmail);
   }
 
-  // 2. Attempt Supabase Login with the resolved email
+  // 2. Attempt Supabase Login
+  console.log("[Login Attempt]: Authenticating with Supabase...");
   const { data, error: authError } = await supabase.auth.signInWithPassword({
     email: loginEmail,
     password,
   });
 
   if (authError) {
+    console.error("[Login Error]: Authentication failed", {
+      message: authError.message,
+      status: authError.status
+    });
     setError("Invalid credentials.");
     setLoading(false);
     return;
   }
 
+  // 3. Log Success and Role Redirection
   const userRole = data.user?.user_metadata?.role || "Learner";
-  navigate(`/${userRole.toLowerCase()}`);
+  console.log("[Login Success]: User verified. Role:", userRole);
+  
   setLoading(false);
+  navigate(`/${userRole.toLowerCase()}`);
 };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-white">
       
-      {/* LEFT SIDE: (Keep your existing geometry/branding code) */}
+      {/* LEFT SIDE:*/}
       <div className="hidden md:flex md:w-1/2 bg-[#0a1120] relative overflow-hidden items-center justify-center p-12">
         <div className="absolute inset-0 bg-[#0a1120]"></div>
         <div className="absolute inset-0 bg-blue-900/10" style={{ clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}></div>
