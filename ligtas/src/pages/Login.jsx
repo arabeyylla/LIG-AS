@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowLeft, ChevronDown, User, Lock, Loader2 } from "lucide-react"; 
 import { supabase } from "../lib/supabaseClient";
+import { createLog } from "../lib/logger";
 import { useNavigate } from "react-router-dom";
 
 export default function Login() {
@@ -50,21 +51,32 @@ export default function Login() {
   });
 
   if (authError) {
-    console.error("[Login Error]: Authentication failed", {
-      message: authError.message,
-      status: authError.status
-    });
+    console.error("[Login Error]: Authentication failed", authError);
     setError("Invalid credentials.");
     setLoading(false);
     return;
   }
 
-  // 3. Log Success and Role Redirection
-  const userRole = data.user?.user_metadata?.role || "Learner";
-  console.log("[Login Success]: User verified. Role:", userRole);
-  
+  // 3. Fetch profile role from database (source of truth)
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', data.user.id)
+    .single();
+
+  if (profileError || !profile) {
+    console.warn("[Login]: Profile fetch failed, using metadata fallback", profileError);
+  }
+
+  const userRole = profile?.role || data.user?.user_metadata?.role || "Learner";
+  console.log("[Login Success]: User verified. Role from profile:", userRole);
+
+  createLog("User logged in", data.user?.email ?? null);
+
+  // 4. Role-based redirect (paths match App.jsx routes)
+  const rolePath = userRole === "Admin" ? "/admin" : userRole === "Educator" ? "/educator" : "/learner";
   setLoading(false);
-  navigate(`/${userRole.toLowerCase()}`);
+  navigate(rolePath);
 };
 
   return (

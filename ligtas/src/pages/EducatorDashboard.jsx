@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { createLog } from '../lib/logger';
 
 export default function EducatorDashboard() {
   const navigate = useNavigate();
@@ -102,8 +103,12 @@ export default function EducatorDashboard() {
             Hi {profile?.first_name || 'Educator'}, your credentials are being verified by our administrators. 
             Once approved, you'll have full access to your students and classes.
           </p>
-          <button 
-            onClick={() => supabase.auth.signOut()}
+          <button
+            onClick={async () => {
+              const { data: { user } } = await supabase.auth.getUser();
+              createLog("User logged out", user?.email ?? null);
+              await supabase.auth.signOut();
+            }}
             className="mt-10 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all"
           >
             LOG OUT

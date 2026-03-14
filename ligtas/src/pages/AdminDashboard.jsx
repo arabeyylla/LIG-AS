@@ -4,9 +4,10 @@ import {
   Download, MessageSquare, Check, X, 
   Eye, MoreVertical, Search, Power,
   FileText, Clock, AlertTriangle, Send, 
-  UserPlus, ShieldAlert, Loader2
+  UserPlus, ShieldAlert, Loader2, Copy
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { createLog } from '../lib/logger';
 
 export default function AdminDashboard() {
   const [showLogs, setShowLogs] = useState(false);
@@ -19,8 +20,70 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
+  // Stats from DB (Server Status, Total Users, Active Now)
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [serverStatus, setServerStatus] = useState('checking');
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [activeNow, setActiveNow] = useState(null); // null = column not available
+
+  // View ID modal
+  const [viewIdUser, setViewIdUser] = useState(null);
+
+  // Confirm Approve/Deny modal: { type: 'approve' | 'deny', id, name }
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+
   useEffect(() => {
     fetchUsers();
+  }, []);
+
+  // Fetch real stats from database
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchStats() {
+      try {
+        setStatsLoading(true);
+        setServerStatus('checking');
+
+        const { count: totalCount, error: countError } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+
+        if (!mounted) return;
+        if (countError) throw countError;
+
+        setTotalUsers(totalCount ?? 0);
+        setServerStatus('online');
+
+        // Active now: users with last_sign_in_at in last 15 minutes (if column exists)
+        try {
+          const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+          const { data: activeData, error: activeError } = await supabase
+            .from('profiles')
+            .select('id')
+            .not('last_sign_in_at', 'is', null)
+            .gte('last_sign_in_at', fifteenMinAgo);
+
+          if (!mounted) return;
+          if (!activeError) setActiveNow(activeData?.length ?? 0);
+          else setActiveNow(null); // column may not exist
+        } catch {
+          setActiveNow(null);
+        }
+      } catch (err) {
+        if (!mounted) return;
+        console.error("Stats fetch failed:", err.message);
+        setServerStatus('offline');
+        setTotalUsers(0);
+        setActiveNow(null);
+      } finally {
+        if (mounted) setStatsLoading(false);
+      }
+    }
+
+    fetchStats();
+    return () => { mounted = false; };
   }, []);
 
   async function handlePostAnnouncement() {
@@ -41,6 +104,9 @@ export default function AdminDashboard() {
         });
 
       if (error) throw error;
+
+      const preview = announcementText.trim().substring(0, 20);
+      createLog(`Admin posted a new announcement: ${preview}${announcementText.trim().length > 20 ? '...' : ''}`, user?.email ?? null);
 
       setAnnouncementText("");
       alert("Announcement posted successfully. It will now show as the latest on the landing page.");
@@ -109,11 +175,29 @@ export default function AdminDashboard() {
         {/* LEFT & CENTER: Management Suites */}
         <div className="lg:col-span-3 space-y-10">
           
-          {/* SYSTEM STATS OVERVIEW */}
+          {/* SYSTEM STATS OVERVIEW - real data from DB */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <StatCard label="Server Status" value="Online" subValue="99.9% Uptime" status="online" />
-            <StatCard label="Total Users" value="1,248" subValue="+12% this week" trend="up" />
-            <StatCard label="Active Now" value="84" subValue="Current active sessions" status="active" />
+            <StatCard
+              label="Server Status"
+              value={serverStatus === 'online' ? 'Online' : serverStatus === 'offline' ? 'Offline' : 'Checking…'}
+              subValue={serverStatus === 'online' ? 'Connected to database' : serverStatus === 'offline' ? 'Cannot reach database' : '…'}
+              status={serverStatus === 'online' ? 'online' : undefined}
+              loading={statsLoading}
+            />
+            <StatCard
+              label="Total Users"
+              value={statsLoading ? '—' : totalUsers.toLocaleString()}
+              subValue={statsLoading ? '…' : `From profiles table`}
+              trend={statsLoading ? undefined : 'up'}
+              loading={statsLoading}
+            />
+            <StatCard
+              label="Active Now"
+              value={statsLoading ? '—' : activeNow === null ? '—' : String(activeNow)}
+              subValue={activeNow === null && !statsLoading ? 'Add last_sign_in_at to profiles for this' : 'Signed in last 15 min'}
+              status={activeNow > 0 ? 'active' : undefined}
+              loading={statsLoading}
+            />
           </div>
 
           {/* USER MANAGEMENT APPROVALS */}
@@ -157,14 +241,17 @@ export default function AdminDashboard() {
                 </div>
               ) : filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
-                  <UserRequestRow 
+                  <UserRequestRow
                     key={user.id}
                     id={user.id}
-                    name={`${user.first_name || ''} ${user.last_name || ''}`}
-                    email={user.email} 
-                    role={user.role} 
+                    name={`${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed'}
+                    email={user.email}
+                    role={user.role}
                     status={user.status}
                     refresh={fetchUsers}
+                    onViewId={() => setViewIdUser({ id: user.id, name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed', email: user.email })}
+                    onApproveClick={() => setConfirmAction({ type: 'approve', id: user.id, name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed' })}
+                    onDenyClick={() => setConfirmAction({ type: 'deny', id: user.id, name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unnamed' })}
                   />
                 ))
               ) : (
@@ -255,34 +342,72 @@ export default function AdminDashboard() {
 
       {/* SYSTEM LOGS MODAL */}
       {showLogs && <SystemLogsModal onClose={() => setShowLogs(false)} />}
-        {showCreateAdmin && <CreateAdminModal onClose={() => setShowCreateAdmin(false)} onCreated={fetchUsers} />}
+      {showCreateAdmin && <CreateAdminModal onClose={() => setShowCreateAdmin(false)} onCreated={fetchUsers} />}
+
+      {/* VIEW USER ID MODAL */}
+      {viewIdUser && (
+        <ViewIdModal
+          userId={viewIdUser.id}
+          name={viewIdUser.name}
+          email={viewIdUser.email}
+          onClose={() => setViewIdUser(null)}
+        />
+      )}
+
+      {/* CONFIRM APPROVE / DENY MODAL */}
+      {confirmAction && (
+        <ConfirmApproveDenyModal
+          type={confirmAction.type}
+          userName={confirmAction.name}
+          onConfirm={async () => {
+            setUpdatingStatus(true);
+            try {
+              const newStatus = confirmAction.type === 'approve' ? 'Verified' : 'Denied';
+              const { error } = await supabase
+                .from('profiles')
+                .update({ status: newStatus })
+                .eq('id', confirmAction.id);
+              if (error) throw error;
+
+              if (confirmAction.type === 'approve') {
+                createLog("Admin approved user registration", `Target ID: ${confirmAction.id}`);
+              } else {
+                createLog("Admin denied user registration", `Target ID: ${confirmAction.id}`);
+              }
+
+              setConfirmAction(null);
+              await fetchUsers();
+            } catch (err) {
+              console.error("Update status failed:", err.message);
+              alert("Action failed: " + err.message);
+            } finally {
+              setUpdatingStatus(false);
+            }
+          }}
+          onCancel={() => setConfirmAction(null)}
+          loading={updatingStatus}
+        />
+      )}
     </div>
   );
 }
 
 // SUB-COMPONENTS
-function StatCard({ label, value, subValue, status, trend }) {
+function StatCard({ label, value, subValue, status, trend, loading }) {
   const isTotalUsers = label === "Total Users";
-  
-  // Logic to center everything EXCEPT the Total Users card
   const alignmentClass = isTotalUsers ? "text-left" : "text-center flex flex-col items-center";
 
   return (
     <div className={`bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-200/60 min-h-[230px] flex flex-col justify-center ${alignmentClass}`}>
-      
-      {/* LABEL */}
       <div className={`flex items-center gap-3 mb-4 ${isTotalUsers ? 'justify-between w-full' : 'justify-center'}`}>
         <p className="text-sm font-black text-slate-400 uppercase tracking-widest">{label}</p>
         {status === 'online' && <div className="w-4 h-4 bg-teal-500 rounded-full animate-pulse" />}
+        {status === 'active' && <div className="w-4 h-4 bg-teal-500 rounded-full animate-pulse" />}
       </div>
-      
-      {/* VALUE */}
       <div className="flex items-baseline gap-3 mb-4">
-        <h4 className="text-4xl font-black text-slate-800 tracking-tighter">{value}</h4>
-        {trend === 'up' && <span className="text-teal-500 font-black text-sm">+12%</span>}
+        <h4 className="text-4xl font-black text-slate-800 tracking-tighter">{loading && value === '—' ? '…' : value}</h4>
+        {trend === 'up' && !loading && value !== '—' && <span className="text-teal-500 font-black text-sm">live</span>}
       </div>
-
-      {/* PROGRESS BAR - Specific to Total Users */}
       {isTotalUsers ? (
         <div className="space-y-4 w-full">
           <div className="h-4 w-full bg-orange-500 rounded-full overflow-hidden flex">
@@ -300,11 +425,10 @@ function StatCard({ label, value, subValue, status, trend }) {
           </div>
         </div>
       ) : (
-        /* SUBVALUE */
         <p className="text-base font-bold text-slate-400">{subValue}</p>
       )}
     </div>
-  ); 
+  );
 }
 
 function CreateAdminModal({ onClose }) {
@@ -365,27 +489,104 @@ function CreateAdminModal({ onClose }) {
   );
 }
 
-function UserRequestRow({ id, name, email, role, status, refresh }) {
-  // Define the variables that the UI depends on
+function ViewIdModal({ userId, name, email, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const copyId = () => {
+    navigator.clipboard.writeText(userId).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[250] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-[3rem] w-full max-w-md p-10 shadow-2xl relative animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute right-10 top-10 p-2 text-slate-300 hover:text-slate-800">
+          <X size={24} />
+        </button>
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-14 h-14 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center">
+            <Eye size={28} />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">User ID</h2>
+            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Profile identifier</p>
+          </div>
+        </div>
+        <p className="text-sm font-bold text-slate-500 mb-1">Name</p>
+        <p className="text-slate-800 font-black mb-4">{name}</p>
+        <p className="text-sm font-bold text-slate-500 mb-1">Email</p>
+        <p className="text-slate-800 font-bold mb-4 break-all">{email || '—'}</p>
+        <p className="text-sm font-bold text-slate-500 mb-1">User ID (UUID)</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-xs font-mono text-slate-700 break-all">{userId}</code>
+          <button
+            type="button"
+            onClick={copyId}
+            className="p-3 bg-slate-100 hover:bg-indigo-500 hover:text-white rounded-xl transition-colors"
+            title="Copy ID"
+          >
+            <Copy size={18} />
+          </button>
+        </div>
+        {copied && <p className="text-teal-600 text-xs font-bold mt-2">Copied to clipboard.</p>}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmApproveDenyModal({ type, userName, onConfirm, onCancel, loading }) {
+  const isApprove = type === 'approve';
+  return (
+    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[250] flex items-center justify-center p-4">
+      <div className="bg-white rounded-[3.5rem] w-full max-w-md p-10 shadow-2xl relative">
+        <button onClick={onCancel} className="absolute right-10 top-10 p-2 text-slate-300 hover:text-slate-800" disabled={loading}>
+          <X size={24} />
+        </button>
+        <div className="flex items-center gap-4 mb-8">
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isApprove ? 'bg-teal-50 text-teal-500' : 'bg-red-50 text-red-500'}`}>
+            {isApprove ? <Check size={28} /> : <X size={28} />}
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-slate-800 tracking-tight">
+              {isApprove ? 'Approve user?' : 'Deny user?'}
+            </h2>
+            <p className="text-slate-500 text-sm font-bold mt-1">
+              {isApprove
+                ? `Approve "${userName}" and set status to Verified. They will have full access.`
+                : `Deny "${userName}". Their status will be set to Denied.`}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            className="flex-1 py-4 border-2 border-slate-200 text-slate-600 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 ${
+              isApprove
+                ? 'bg-teal-500 hover:bg-teal-600 text-white shadow-lg shadow-teal-500/20'
+                : 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20'
+            }`}
+          >
+            {loading ? <Loader2 className="animate-spin" size={20} /> : isApprove ? 'Confirm Approve' : 'Confirm Deny'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function UserRequestRow({ id, name, email, role, status, refresh, onViewId, onApproveClick, onDenyClick }) {
   const isPending = status === "Pending Review";
   const isDenied = status === "Denied";
-
-  const handleUpdateStatus = async (newStatus) => {
-    try {
-      console.log(`Updating user ${id} to ${newStatus}...`);
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-      console.log("Update successful!");
-      refresh(); // This re-fetches the list so the UI updates
-    } catch (err) {
-      console.error("Update failed:", err.message);
-      alert("Action failed: " + err.message);
-    }
-  };
 
   return (
     <div className={`flex flex-col xl:flex-row xl:items-center justify-between p-8 rounded-[2.5rem] border-2 transition-all group ${
@@ -413,33 +614,53 @@ function UserRequestRow({ id, name, email, role, status, refresh }) {
       <div className="flex items-center gap-4">
         {isPending ? (
           <>
-            <button className="flex items-center gap-2 bg-indigo-500 text-white px-6 py-3 rounded-xl font-black text-xs hover:bg-indigo-600 shadow-lg shadow-indigo-500/20">
+            <button
+              type="button"
+              onClick={onViewId}
+              className="flex items-center gap-2 bg-indigo-500 text-white px-6 py-3 rounded-xl font-black text-xs hover:bg-indigo-600 shadow-lg shadow-indigo-500/20"
+            >
               <Eye size={16}/> VIEW ID
             </button>
-            <button 
-              onClick={() => handleUpdateStatus('Verified')}
+            <button
+              type="button"
+              onClick={onApproveClick}
               className="p-3 bg-teal-500 text-white rounded-xl hover:bg-teal-600 shadow-lg shadow-teal-500/20"
+              title="Approve"
             >
               <Check size={20}/>
             </button>
-            <button 
-              onClick={() => handleUpdateStatus('Denied')}
+            <button
+              type="button"
+              onClick={onDenyClick}
               className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 shadow-lg shadow-red-500/20"
+              title="Deny"
             >
               <X size={20}/>
             </button>
           </>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
             {isDenied && (
-               <button 
-                 onClick={() => handleUpdateStatus('Pending Review')}
+               <button
+                 type="button"
+                 onClick={async () => {
+                   try {
+                     const { error } = await supabase.from('profiles').update({ status: 'Pending Review' }).eq('id', id);
+                     if (error) throw error;
+                     refresh();
+                   } catch (err) {
+                     alert("Action failed: " + err.message);
+                   }
+                 }}
                  className="text-[10px] font-black text-slate-400 uppercase hover:text-slate-800 px-4"
                >
                  Re-evaluate
                </button>
             )}
-            <button className="p-4 text-slate-300 hover:text-slate-800"><MoreVertical size={24}/></button>
+            <button type="button" onClick={onViewId} className="flex items-center gap-2 bg-slate-100 text-slate-600 px-4 py-2 rounded-xl font-black text-xs hover:bg-indigo-500 hover:text-white transition-colors">
+              <Eye size={14}/> VIEW ID
+            </button>
+            <button type="button" className="p-2 text-slate-300 hover:text-slate-800"><MoreVertical size={20}/></button>
           </div>
         )}
       </div>
@@ -519,15 +740,17 @@ function SystemLogsModal({ onClose }) {
             </div>
           ) : (
             logs.map((log) => (
-              <div key={log.id} className="p-6 bg-slate-50 rounded-2xl font-bold text-sm text-slate-600 flex gap-4">
-                <span className="text-slate-400 whitespace-nowrap">
-                  [{log.created_at ? new Date(log.created_at).toLocaleString() : '—'}]
-                </span>
-                <p>
-                  {log.message}{' '}
+              <div key={log.id} className="p-4 border-b border-slate-50 flex justify-between items-center">
+                <div>
+                  <p className="text-slate-800 font-bold">{log.message}</p>
                   {log.user_identifier && (
-                    <span className="text-indigo-500">(User: {log.user_identifier})</span>
+                    <span className="text-[10px] bg-slate-100 px-2 py-1 rounded text-slate-500 font-mono">
+                      User: {log.user_identifier}
+                    </span>
                   )}
+                </div>
+                <p className="text-xs text-slate-400 font-bold">
+                  {new Date(log.created_at).toLocaleString('en-PH')}
                 </p>
               </div>
             ))

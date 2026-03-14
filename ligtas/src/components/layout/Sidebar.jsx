@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Shield, LogOut, ChevronRight, X, AlertTriangle, Settings } from "lucide-react";
 import { supabase } from '../../lib/supabaseClient';
+import { createLog } from '../../lib/logger';
 
 export default function Sidebar({ isOpen, onClose, userRole, userInfo }) {
   const navigate = useNavigate();
@@ -15,11 +16,12 @@ export default function Sidebar({ isOpen, onClose, userRole, userInfo }) {
   const handleLogoutClick = async () => {
     if (!showConfirm) {
       setShowConfirm(true);
-      // Auto-reset confirm button after 3 seconds if not clicked
       setTimeout(() => setShowConfirm(false), 3000);
     } else {
+      const { data: { user } } = await supabase.auth.getUser();
+      createLog("User logged out", user?.email ?? null);
       await supabase.auth.signOut();
-      localStorage.clear(); 
+      localStorage.clear();
       onClose();
       navigate('/', { replace: true });
     }

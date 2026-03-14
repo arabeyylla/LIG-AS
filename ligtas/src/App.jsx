@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardLayout from "./components/layout/DashboardLayout";
+import ProtectedRoute from "./components/ProtectedRoute";
 import GameplayOverview from "./pages/GameplayOverview";
 
 // Core Pages
@@ -38,128 +39,116 @@ function App() {
 
         <Route path="/gameplay" element={<GameplayOverview />} />
 
-        {/* Student Routes */}
+        {/* Learner Routes - protected */}
         <Route path="/learner" element={
-          <DashboardLayout userRole="Learner">
-            <StudentDashboard />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Learner">
+            <DashboardLayout><StudentDashboard /></DashboardLayout>
+          </ProtectedRoute>
         } />
 
-        {/* Educator Routes */}
+        {/* Educator Routes - protected */}
         <Route path="/educator" element={
-          <DashboardLayout userRole="Educator">
-            <EducatorDashboard />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Educator">
+            <DashboardLayout><EducatorDashboard /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/educator/modules" element={
-          <DashboardLayout userRole="Educator">
-            <EducatorModules />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Educator">
+            <DashboardLayout><EducatorModules /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/educator/assignments" element={
-          <DashboardLayout userRole="Educator">
-            <EducatorAssignments />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Educator">
+            <DashboardLayout><EducatorAssignments /></DashboardLayout>
+          </ProtectedRoute>
         } />
 
-        {/* Admin Routes */}
+        {/* Admin Routes - protected */}
         <Route path="/admin" element={
-          <DashboardLayout userRole="Admin">
-            <AdminDashboard />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Admin">
+            <DashboardLayout><AdminDashboard /></DashboardLayout>
+          </ProtectedRoute>
         } />
 
+        {/* Account management - any authenticated role */}
         <Route path="/edit-profile" element={
-          <DashboardLayout userRole="Learner">
-            <EditProfile />
-          </DashboardLayout>
+          <ProtectedRoute allowedRoles={["Learner", "Educator", "Admin"]}>
+            <DashboardLayout><EditProfile /></DashboardLayout>
+          </ProtectedRoute>
         } />
-
-        {/* Common Account Management Routes */}
-        {/* These also use DashboardLayout to keep the Navbar/Sidebar visible */}
-        <Route path="/edit-profile" element={
-        <DashboardLayout userRole="Admin"> {/* Change this to "Admin" to test Admin sidebar */}
-            <EditProfile />
-          </DashboardLayout>
-        } />
-
         <Route path="/security" element={
-          <DashboardLayout userRole="Admin"> 
-            <AccountSecurity />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Admin">
+            <DashboardLayout><AccountSecurity /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/change-password" element={
-          <DashboardLayout>
-            <ChangePassword />
-          </DashboardLayout>
+          <ProtectedRoute allowedRoles={["Learner", "Educator", "Admin"]}>
+            <DashboardLayout><ChangePassword /></DashboardLayout>
+          </ProtectedRoute>
         } />
 
         {/* Support Briefing - per role */}
         <Route path="/learner/support/help-desk" element={
-          <DashboardLayout userRole="Learner">
-            <SupportHelpDesk />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Learner">
+            <DashboardLayout><SupportHelpDesk /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/learner/support/simulation-guide" element={
-          <DashboardLayout userRole="Learner">
-            <SupportSimulationGuide />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Learner">
+            <DashboardLayout><SupportSimulationGuide /></DashboardLayout>
+          </ProtectedRoute>
         } />
-
         <Route path="/educator/support/help-desk" element={
-          <DashboardLayout userRole="Educator">
-            <SupportHelpDesk />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Educator">
+            <DashboardLayout><SupportHelpDesk /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/educator/support/simulation-guide" element={
-          <DashboardLayout userRole="Educator">
-            <SupportSimulationGuide />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Educator">
+            <DashboardLayout><SupportSimulationGuide /></DashboardLayout>
+          </ProtectedRoute>
         } />
-
         <Route path="/admin/support/help-desk" element={
-          <DashboardLayout userRole="Admin">
-            <SupportHelpDesk />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Admin">
+            <DashboardLayout><SupportHelpDesk /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/admin/support/simulation-guide" element={
-          <DashboardLayout userRole="Admin">
-            <SupportSimulationGuide />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Admin">
+            <DashboardLayout><SupportSimulationGuide /></DashboardLayout>
+          </ProtectedRoute>
         } />
 
         {/* Device Settings - per role */}
         <Route path="/learner/device/global-alerts" element={
-          <DashboardLayout userRole="Learner">
-            <DeviceGlobalAlerts />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Learner">
+            <DashboardLayout><DeviceGlobalAlerts /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/learner/device/logs" element={
-          <DashboardLayout userRole="Learner">
-            <DeviceLogs />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Learner">
+            <DashboardLayout><DeviceLogs /></DashboardLayout>
+          </ProtectedRoute>
         } />
-
         <Route path="/educator/device/global-alerts" element={
-          <DashboardLayout userRole="Educator">
-            <DeviceGlobalAlerts />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Educator">
+            <DashboardLayout><DeviceGlobalAlerts /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/educator/device/logs" element={
-          <DashboardLayout userRole="Educator">
-            <DeviceLogs />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Educator">
+            <DashboardLayout><DeviceLogs /></DashboardLayout>
+          </ProtectedRoute>
         } />
-
         <Route path="/admin/device/global-alerts" element={
-          <DashboardLayout userRole="Admin">
-            <DeviceGlobalAlerts />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Admin">
+            <DashboardLayout><DeviceGlobalAlerts /></DashboardLayout>
+          </ProtectedRoute>
         } />
         <Route path="/admin/device/logs" element={
-          <DashboardLayout userRole="Admin">
-            <DeviceLogs />
-          </DashboardLayout>
+          <ProtectedRoute allowedRole="Admin">
+            <DashboardLayout><DeviceLogs /></DashboardLayout>
+          </ProtectedRoute>
         } />
 
       </Routes>
