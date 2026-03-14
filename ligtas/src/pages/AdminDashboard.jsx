@@ -11,6 +11,8 @@ import { supabase } from '../lib/supabaseClient';
 export default function AdminDashboard() {
   const [showLogs, setShowLogs] = useState(false);
   const [showCreateAdmin, setShowCreateAdmin] = useState(false);
+  const [announcementText, setAnnouncementText] = useState("");
+  const [posting, setPosting] = useState(false);
 
   // Real-time Data States
   const [users, setUsers] = useState([]);
@@ -20,6 +22,35 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  async function handlePostAnnouncement() {
+    if (!announcementText.trim()) return;
+    try {
+      setPosting(true);
+
+      // Get current admin info (optional but useful to store)
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { error } = await supabase
+        .from('announcements')
+        .insert({
+          title: 'System Advisory',           // you can later expose a title input
+          body: announcementText.trim(),
+          category: 'System',                 // Advisory | System | Alert etc.
+          created_by: user?.id || null
+        });
+
+      if (error) throw error;
+
+      setAnnouncementText("");
+      alert("Announcement posted successfully. It will now show as the latest on the landing page.");
+    } catch (err) {
+      console.error("Failed to post announcement:", err.message);
+      alert("Failed to post announcement: " + err.message);
+    } finally {
+      setPosting(false);
+    }
+  }
 
   async function fetchUsers() {
     try {
@@ -153,23 +184,27 @@ export default function AdminDashboard() {
             
             <div className="space-y-8">
               <div className="space-y-3">
-                <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Landing Page Announcement</label>
-                <div className="w-full border-4 border-dashed border-slate-100 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 transition-all cursor-pointer">
-                   <Download size={32} className="mb-2" />
-                   <p className="font-bold">Upload Announcement File (JPG/PDF)</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
                 <label className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Announcement Content</label>
                 <textarea 
                   placeholder="Type here to edit text..."
+                  value={announcementText}
+                  onChange={(e) => setAnnouncementText(e.target.value)}
                   className="w-full bg-slate-50 border-2 border-transparent focus:border-teal-500 rounded-[2rem] p-8 font-bold text-slate-800 min-h-[200px] outline-none transition-all"
                 />
               </div>
 
-              <button className="w-full bg-teal-500 hover:bg-teal-600 py-6 rounded-2xl font-black text-white flex items-center justify-center gap-3 transition-all shadow-xl shadow-teal-500/20">
-                <Send size={24} /> POST ANNOUNCEMENT
+              <button
+                type="button"
+                onClick={handlePostAnnouncement}
+                disabled={posting || !announcementText.trim()}
+                className={`w-full py-6 rounded-2xl font-black text-white flex items-center justify-center gap-3 transition-all shadow-xl shadow-teal-500/20 ${
+                  posting || !announcementText.trim()
+                    ? 'bg-teal-300 cursor-not-allowed'
+                    : 'bg-teal-500 hover:bg-teal-600'
+                }`}
+              >
+                <Send size={24} />
+                {posting ? 'Posting...' : 'POST ANNOUNCEMENT'}
               </button>
             </div>
           </div>
@@ -440,12 +475,31 @@ function InsightCard({ color, label, value }) {
 }
 
 function SystemLogsModal({ onClose }) {
-  const logs = [
-    { time: "2026-02-07 17:29", msg: "Simulation failed: Volcanic Eruption Response", user: "learner_264" },
-    { time: "2026-02-07 16:27", msg: "Simulation replayed: Fire Response", user: "learner_412" },
-    { time: "2026-02-07 16:14", msg: "Simulation completed: Landslide Response", user: "learner_204" },
-    { time: "2026-02-07 15:42", msg: "Simulation started: Typhoon Preparedness", user: "learner_089" },
-  ];
+  const [logs, setLogs] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    async function fetchLogs() {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('system_logs')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (error) throw error;
+        setLogs(data || []);
+      } catch (err) {
+        console.error("Failed to load system logs:", err.message);
+        setLogs([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchLogs();
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-4">
@@ -455,12 +509,29 @@ function SystemLogsModal({ onClose }) {
         </button>
         <h2 className="text-4xl font-black text-slate-800 tracking-tighter mb-10">System Logs</h2>
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
-          {logs.map((log, i) => (
-            <div key={i} className="p-6 bg-slate-50 rounded-2xl font-bold text-sm text-slate-600 flex gap-4">
-              <span className="text-slate-400 whitespace-nowrap">[{log.time}]</span>
-              <p>{log.msg} <span className="text-indigo-500">(User: {log.user})</span></p>
+          {loading ? (
+            <div className="p-6 text-center text-slate-400 text-sm font-bold">
+              Loading system logs...
             </div>
-          ))}
+          ) : logs.length === 0 ? (
+            <div className="p-6 text-center text-slate-400 text-sm font-bold">
+              No system logs recorded yet.
+            </div>
+          ) : (
+            logs.map((log) => (
+              <div key={log.id} className="p-6 bg-slate-50 rounded-2xl font-bold text-sm text-slate-600 flex gap-4">
+                <span className="text-slate-400 whitespace-nowrap">
+                  [{log.created_at ? new Date(log.created_at).toLocaleString() : '—'}]
+                </span>
+                <p>
+                  {log.message}{' '}
+                  {log.user_identifier && (
+                    <span className="text-indigo-500">(User: {log.user_identifier})</span>
+                  )}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

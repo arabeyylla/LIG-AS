@@ -11,6 +11,8 @@ export default function Landing() {
 
   // --- CAROUSEL LOGIC ---
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [latestAnnouncement, setLatestAnnouncement] = useState(null);
+  const [announcementLoading, setAnnouncementLoading] = useState(true);
   const gameImages = [
     { url: Landingpage, title: "RPG Exploration" },
     { url: game, title: "Survival Mechanics" },
@@ -19,6 +21,34 @@ export default function Landing() {
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % gameImages.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? gameImages.length - 1 : prev - 1));
+
+  // Fetch latest announcement from Supabase
+  useEffect(() => {
+    async function fetchLatestAnnouncement() {
+      try {
+        setAnnouncementLoading(true);
+        const { data, error } = await supabase
+          .from('announcements')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // 116 = no rows
+          throw error;
+        }
+
+        setLatestAnnouncement(data || null);
+      } catch (err) {
+        console.error("Error fetching latest announcement:", err.message);
+        setLatestAnnouncement(null);
+      } finally {
+        setAnnouncementLoading(false);
+      }
+    }
+
+    fetchLatestAnnouncement();
+  }, []);
   
   return (
     <div className="min-h-screen bg-gray-50">
@@ -210,55 +240,52 @@ export default function Landing() {
 
           {/* Advisories Grid */}
           <div className="grid md:grid-cols-3 gap-8">
-            
-            {/* Advisory Card 1 */}
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
+            {/* Latest announcement from DB */}
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between md:col-span-2">
               <div>
                 <div className="flex justify-between items-center text-sm text-gray-400 mb-4">
-                  <span>System • JAN 15</span>
+                  <span>
+                    {(latestAnnouncement?.category || 'System') + ' • ' +
+                      (latestAnnouncement?.created_at
+                        ? new Date(latestAnnouncement.created_at).toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: '2-digit',
+                          })
+                        : '—')}
+                  </span>
                 </div>
-                <h4 className="text-xl font-bold mb-3">Module 4: Urban Fire Released</h4>
-                <p className="text-gray-600 text-sm leading-relaxed mb-6">
-                  The new simulation module covering fire exits and extinguisher usage is now available for all learners.
+                <h4 className="text-xl font-bold mb-3">
+                  {latestAnnouncement?.title || 'No announcements yet'}
+                </h4>
+                <p className="text-gray-600 text-sm leading-relaxed mb-6 whitespace-pre-line">
+                  {announcementLoading
+                    ? 'Loading latest advisory...'
+                    : latestAnnouncement?.body ||
+                      'When an admin posts an announcement from the control panel, it will appear here as the latest disaster advisory.'}
                 </p>
               </div>
-              <span className="bg-teal-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">
-                New Content
-              </span>
+              {latestAnnouncement && (
+                <span className="bg-teal-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">
+                  Latest
+                </span>
+              )}
             </div>
 
-            {/* Advisory Card 2 */}
+            {/* Static supporting cards for now */}
             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
               <div>
                 <div className="flex justify-between items-center text-sm text-gray-400 mb-4">
-                  <span>Advisory • JAN 10</span>
+                  <span>Advisory • Always On</span>
                 </div>
-                <h4 className="text-xl font-bold mb-3">PAGASA Weather Alert</h4>
+                <h4 className="text-xl font-bold mb-3">Stay Prepared</h4>
                 <p className="text-gray-600 text-sm leading-relaxed mb-6">
-                  Low pressure area spotted East of Surigao. Students are advised to review the Typhoon Preparedness module.
-                </p>
-              </div>
-              <span className="bg-red-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">
-                Alert
-              </span>
-            </div>
-
-            {/* Advisory Card 3 */}
-            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-center text-sm text-gray-400 mb-4">
-                  <span>Maintenance • JAN 05</span>
-                </div>
-                <h4 className="text-xl font-bold mb-3">Scheduled Server Maintenance</h4>
-                <p className="text-gray-600 text-sm leading-relaxed mb-6">
-                  Servers will be offline for optimization on Jan 20, 12:00 AM - 4:00 AM.
+                  Educators can broadcast system-wide advisories directly from the LIG+AS admin dashboard.
                 </p>
               </div>
               <span className="bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">
-                System
+                Info
               </span>
             </div>
-
           </div>
         </div>
       </section>

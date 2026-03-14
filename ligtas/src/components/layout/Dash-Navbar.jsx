@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Bell, HelpCircle, Settings, Wind, CheckCircle2, 
   MessageSquare, ChevronRight, Info, Shield, ExternalLink 
@@ -8,11 +8,13 @@ import {
 export default function DashNavbar({ onProfileClick, userRole = "Learner", userName }) {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [notifFilter, setNotifFilter] = useState("all");
+  const navigate = useNavigate();
 
   const toggleDropdown = (name) => {
     setActiveDropdown(activeDropdown === name ? null : name);
   };
-const getHomePath = () => {
+
+  const getHomePath = () => {
     const rolePaths = { Admin: "/admin", Educator: "/educator", Learner: "/learner" };
     return rolePaths[userRole] || "/learner";
   };
@@ -115,20 +117,26 @@ const getHomePath = () => {
 
                       <div className="space-y-3">
 
-                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center justify-between group transition-all">
-
+                        <button
+                          onClick={() => {
+                            navigate(`${getHomePath()}/support/help-desk`);
+                            setActiveDropdown(null);
+                          }}
+                          className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center justify-between group transition-all"
+                        >
                           <div className="flex items-center gap-3"><MessageSquare size={18} className="text-orange-500"/> Help Desk</div>
-
                           <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-
                         </button>
 
-                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center justify-between group transition-all">
-
+                        <button
+                          onClick={() => {
+                            navigate(`${getHomePath()}/support/simulation-guide`);
+                            setActiveDropdown(null);
+                          }}
+                          className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center justify-between group transition-all"
+                        >
                           <div className="flex items-center gap-3"><Info size={18} className="text-orange-500"/> Simulation Guide</div>
-
                           <ChevronRight size={16} className="text-slate-300 group-hover:translate-x-1 transition-transform" />
-
                         </button>
 
                       </div>
@@ -163,16 +171,24 @@ const getHomePath = () => {
 
                       <div className="space-y-2">
 
-                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center gap-4 transition-all">
-
+                        <button
+                          onClick={() => {
+                            navigate(`${getHomePath()}/device/global-alerts`);
+                            setActiveDropdown(null);
+                          }}
+                          className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center gap-4 transition-all"
+                        >
                           <Bell size={18} className="text-slate-400"/> Global Alerts
-
                         </button>
 
-                        <button className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center gap-4 transition-all">
-
+                        <button
+                          onClick={() => {
+                            navigate(`${getHomePath()}/device/logs`);
+                            setActiveDropdown(null);
+                          }}
+                          className="w-full text-left p-4 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-2xl flex items-center gap-4 transition-all"
+                        >
                           <ExternalLink size={18} className="text-slate-400"/> Download Logs
-
                         </button>
 
                       </div>

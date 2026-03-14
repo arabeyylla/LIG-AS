@@ -5,12 +5,18 @@ import {
   Search, Filter, Edit, Trash2, 
   Info, Calendar, CheckCircle, Loader2, Lock, Clock
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 
 export default function EducatorDashboard() {
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [students, setStudents] = useState([]);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("ALL"); // ALL | AT-RISK | COMPLETED | ON-TRACK
 
   // 1. Fetch User Profile & Verification Status
   useEffect(() => {
@@ -36,6 +42,42 @@ export default function EducatorDashboard() {
     }
     getProfile();
   }, []);
+
+  // 2. Fetch students for roster from Supabase
+  useEffect(() => {
+    async function fetchStudents() {
+      try {
+        setStudentsLoading(true);
+        const { data, error } = await supabase
+          .from('students')
+          .select('*')
+          .order('full_name', { ascending: true });
+
+        if (error) throw error;
+        setStudents(data || []);
+      } catch (err) {
+        console.error("Error fetching students:", err.message);
+        setStudents([]);
+      } finally {
+        setStudentsLoading(false);
+      }
+    }
+
+    fetchStudents();
+  }, []);
+
+  // Derived roster based on search & filter
+  const filteredStudents = students.filter((student) => {
+    const name = (student.full_name || "").toLowerCase();
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = term === "" || name.includes(term);
+
+    const status = (student.status || "").toUpperCase();
+    const matchesFilter =
+      filterStatus === "ALL" || status === filterStatus;
+
+    return matchesSearch && matchesFilter;
+  });
 
   // 2. Loading State
   if (loading) {
@@ -135,18 +177,63 @@ export default function EducatorDashboard() {
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <Search size={22} className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-300" />
-                  <input type="text" placeholder="Search student..." className="pl-14 pr-8 py-4 bg-slate-50 rounded-2xl text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 w-80" />
+                  <input
+                    type="text"
+                    placeholder="Search student..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-14 pr-8 py-4 bg-slate-50 rounded-2xl text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 w-80"
+                  />
                 </div>
-                <button className="p-4 bg-slate-50 text-slate-400 rounded-2xl hover:text-slate-800 transition-colors">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next =
+                      filterStatus === "ALL"
+                        ? "AT-RISK"
+                        : filterStatus === "AT-RISK"
+                        ? "ON-TRACK"
+                        : filterStatus === "ON-TRACK"
+                        ? "COMPLETED"
+                        : "ALL";
+                    setFilterStatus(next);
+                  }}
+                  className={`p-4 rounded-2xl transition-colors ${
+                    filterStatus === "ALL"
+                      ? "bg-slate-50 text-slate-400 hover:text-slate-800"
+                      : "bg-orange-50 text-orange-600 hover:bg-orange-100"
+                  }`}
+                  title={
+                    filterStatus === "ALL"
+                      ? "No filter"
+                      : `Filtering: ${filterStatus.replace("-", " ")}`
+                  }
+                >
                   <Filter size={24} />
                 </button>
               </div>
             </div>
             
             <div className="space-y-6">
-               <StudentRow name="Penduko, Pedro" xp="850" progress={20} status="AT-RISK" />
-               <StudentRow name="Dela Cruz, Juan" xp="2,400" progress={90} status="COMPLETED" />
-               <StudentRow name="Santos, Maria" xp="1,250" progress={45} status="ON-TRACK" />
+              {studentsLoading ? (
+                <div className="py-10 text-center text-slate-400 text-xs font-bold">
+                  Loading students...
+                </div>
+              ) : filteredStudents.length === 0 ? (
+                <div className="py-10 text-center text-slate-400 text-xs font-bold">
+                  No listed students.
+                </div>
+              ) : (
+                filteredStudents.map((student) => (
+                  <StudentRow
+                    key={student.id}
+                    name={student.full_name}
+                    xp={student.xp ?? "0"}
+                    progress={student.progress ?? 0}
+                    status={(student.status || "ON-TRACK").toUpperCase()}
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -173,7 +260,11 @@ export default function EducatorDashboard() {
                   <input type="date" className="w-full bg-white/5 border border-white/10 rounded-2xl pl-14 pr-5 py-4 text-base font-bold focus:outline-none focus:ring-2 focus:ring-orange-500 text-white" />
                 </div>
               </div>
-              <button className="w-full bg-orange-500 hover:bg-orange-600 py-5 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition-all mt-6 shadow-lg shadow-orange-500/20 active:scale-95">
+              <button
+                type="button"
+                onClick={() => navigate('/educator/assignments')}
+                className="w-full bg-orange-500 hover:bg-orange-600 py-5 rounded-2xl font-black text-sm flex items-center justify-center gap-3 transition-all mt-6 shadow-lg shadow-orange-500/20 active:scale-95"
+              >
                 <PlusCircle size={20} /> ASSIGN TO CLASS
               </button>
             </div>
@@ -187,7 +278,11 @@ export default function EducatorDashboard() {
                 className="w-full py-5 bg-teal-500 text-white rounded-2xl font-black text-sm hover:bg-teal-600 transition-all flex items-center justify-center gap-3 shadow-lg shadow-teal-500/20">
                 <Plus size={22}/> CREATE CLASS
               </button>
-              <button className="w-full py-5 border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/educator/modules')}
+                className="w-full py-5 border-2 border-slate-100 text-slate-600 rounded-2xl font-black text-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-3"
+              >
                 <BookOpen size={22}/> VIEW ALL MODULES
               </button>
             </div>
