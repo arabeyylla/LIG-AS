@@ -31,7 +31,7 @@ export default function ProtectedRoute({ allowedRole, allowedRoles = [], childre
         return;
       }
 
-      const { data: profile, error } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
@@ -53,7 +53,7 @@ export default function ProtectedRoute({ allowedRole, allowedRoles = [], childre
 
     check();
     return () => { mounted = false; };
-  }, [navigate, location.pathname, rolesKey]);
+  }, [navigate, location.pathname, allowedRole, allowedRoles, rolesAllowed, rolesKey]);
 
   if (status === 'loading') {
     return (

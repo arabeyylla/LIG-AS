@@ -2,11 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Camera, User, Save, Key, Lock, EyeOff, Trash2, Mail, Fingerprint, Loader2, AlertTriangle, ShieldCheck, CheckCircle2, X } from 'lucide-react';
 import BackButton from "../components/ui/BackButton";
 import { supabase } from '../lib/supabaseClient';
-import { useNavigate } from 'react-router-dom';
 
 export default function EditProfile() {
-  const navigate = useNavigate();
-  
   // States
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -29,10 +26,6 @@ export default function EditProfile() {
   });
   const [newPassword, setNewPassword] = useState("");
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
   async function fetchProfile() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -48,6 +41,10 @@ export default function EditProfile() {
     }
     setLoading(false);
   }
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
   // --- STEP 1: OPEN MODAL ---
   const triggerVerify = (actionType) => {

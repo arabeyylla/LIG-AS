@@ -1,8 +1,27 @@
 import { useState } from "react";
-import { ArrowLeft, ChevronDown, User, Lock, Loader2 } from "lucide-react"; 
+import { ArrowLeft, User, Lock, Loader2, Eye, EyeOff, ChevronDown } from "lucide-react"; 
 import { supabase } from "../lib/supabaseClient";
 import { createLog } from "../lib/logger";
 import { useNavigate } from "react-router-dom";
+
+function ProviderIcon({ label, color, bg = "#ffffff" }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="1" y="1" width="18" height="18" rx="6" fill={bg} stroke={color} strokeWidth="2" />
+      <text
+        x="10"
+        y="14"
+        textAnchor="middle"
+        fontSize="10"
+        fontWeight="800"
+        fill={color}
+        fontFamily="Arial, sans-serif"
+      >
+        {label}
+      </text>
+    </svg>
+  );
+}
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,6 +30,10 @@ export default function Login() {
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("Learner");
 
   const handleLogin = async (e) => {
   e.preventDefault();
@@ -73,11 +96,70 @@ export default function Login() {
 
   createLog("User logged in", data.user?.email ?? null);
 
-  // 4. Role-based redirect (paths match App.jsx routes)
-  const rolePath = userRole === "Admin" ? "/admin" : userRole === "Educator" ? "/educator" : "/learner";
+  // 4. Enforce role selection to avoid cross-role access
+  if (userRole !== selectedRole) {
+    await supabase.auth.signOut();
+    setError(
+      `Account type mismatch. This profile is "${userRole}". Please select "${userRole}" and try again.`
+    );
+    setLoading(false);
+    return;
+  }
+
+  // 5. Role-based redirect (paths match App.jsx routes)
+  const rolePath =
+    selectedRole === "Admin"
+      ? "/admin"
+      : selectedRole === "Educator"
+      ? "/educator"
+      : "/learner";
   setLoading(false);
   navigate(rolePath);
 };
+
+  const handleOAuth = async (provider) => {
+    try {
+      setError(null);
+      setLoading(true);
+
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          // Use /learner as a safe landing page; ProtectedRoute will route to the right dashboard.
+          redirectTo: `${window.location.origin}/learner`,
+        },
+      });
+    } catch (err) {
+      console.error("OAuth sign-in failed:", err?.message || err);
+      setError(`OAuth with ${provider} failed. If this provider isn't configured in Supabase, enable it in the dashboard.`);
+      setLoading(false);
+    }
+  };
+
+  const handleForgetPassword = async () => {
+    setResetSent(false);
+    setError(null);
+
+    if (!email.trim()) {
+      setError("Please enter your email first.");
+      return;
+    }
+
+    try {
+      setResetting(true);
+      const redirectTo = `${window.location.origin}/login`;
+
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
+      if (resetError) throw resetError;
+
+      setResetSent(true);
+    } catch (err) {
+      console.error("Reset password failed:", err?.message || err);
+      setError("Failed to send reset link. Please try again.");
+    } finally {
+      setResetting(false);
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-white">
@@ -120,8 +202,27 @@ export default function Login() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             {/* Updated Input Label & Placeholder */}
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Account Type</label>
+              <div className="relative group">
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="w-full p-4 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none bg-gray-50 cursor-pointer appearance-none transition-all shadow-sm"
+                >
+                  <option value="Learner">Student User</option>
+                  <option value="Educator">Educator / Faculty</option>
+                  <option value="Admin">System Admin</option>
+                </select>
+                <ChevronDown
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                  size={20}
+                />
+              </div>
+            </div>
+
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Username or Email</label>
+            <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Username</label>
             <div className="relative group">
               <span className="absolute inset-y-0 left-4 flex items-center text-gray-400 group-focus-within:text-orange-500 transition-colors">
                 <User size={18} />
@@ -130,7 +231,7 @@ export default function Login() {
                 type="text" // Changed from email to text
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Username or email"
+                placeholder="Enter your username"
                 className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm"
                 required
               />
@@ -145,13 +246,33 @@ export default function Login() {
                   <Lock size={18} />
                 </span>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm"
+                  className="w-full pl-12 pr-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm"
                   required
                 />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 transition-colors"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+
+              <div className="flex justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={handleForgetPassword}
+                  disabled={resetting || loading}
+                  className="text-xs font-bold text-gray-500 hover:text-orange-500 transition-colors cursor-pointer"
+                >
+                  {resetting ? "Sending..." : "forgot password?"}
+                </button>
               </div>
             </div>
 
@@ -161,6 +282,65 @@ export default function Login() {
             >
               {loading ? <Loader2 className="animate-spin" /> : "LOGIN"}
             </button>
+
+            {/* OAuth provider circles below login */}
+            <div className="pt-2">
+              <div className="text-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                or sign in using
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("google")}
+                  disabled={loading}
+                  className="w-10 h-10 rounded-full border border-gray-100 bg-white hover:bg-gray-50 flex items-center justify-center transition-all active:scale-[0.98]"
+                  aria-label="Continue with Google"
+                  title="Google"
+                >
+                  <img
+                    alt="Google"
+                    src="https://upload.wikimedia.org/wikipedia/commons/8/82/Google_Logo.svg"
+                    className="w-5 h-5"
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("yahoo")}
+                  disabled={loading}
+                  className="w-10 h-10 rounded-full border border-gray-100 bg-white hover:bg-gray-50 flex items-center justify-center transition-all active:scale-[0.98]"
+                  aria-label="Continue with Yahoo"
+                  title="Yahoo"
+                >
+                  <img
+                    alt="Yahoo"
+                    src="https://upload.wikimedia.org/wikipedia/commons/3/3a/Yahoo!_(2019).svg"
+                    className="w-5 h-5"
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("azure")}
+                  disabled={loading}
+                  className="w-10 h-10 rounded-full border border-gray-100 bg-white hover:bg-gray-50 flex items-center justify-center transition-all active:scale-[0.98]"
+                  aria-label="Continue with Microsoft"
+                  title="Microsoft"
+                >
+                  <img
+                    alt="Microsoft"
+                    src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg"
+                    className="w-5 h-5"
+                  />
+                </button>
+              </div>
+
+              {resetSent && (
+                <div className="mt-3 text-center">
+                  <span className="text-xs font-bold text-teal-600">
+                    Reset link sent. Check your email.
+                  </span>
+                </div>
+              )}
+            </div>
           </form>
 
           <p className="mt-10 text-center text-gray-500">

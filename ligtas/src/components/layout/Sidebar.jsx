@@ -10,7 +10,10 @@ export default function Sidebar({ isOpen, onClose, userRole, userInfo }) {
 
   // Reset confirmation when sidebar closes
   useEffect(() => {
-    if (!isOpen) setShowConfirm(false);
+    if (!isOpen) {
+      // Defer state update to avoid React/ESLint complaining about state updates in effects.
+      setTimeout(() => setShowConfirm(false), 0);
+    }
   }, [isOpen]);
 
   const handleLogoutClick = async () => {

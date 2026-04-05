@@ -1,7 +1,26 @@
 import { useState } from "react";
-import { ArrowLeft, ChevronDown, User, Mail, Lock, ShieldCheck, Loader2, CheckCircle } from "lucide-react";
+import { ArrowLeft, ChevronDown, User, Mail, Lock, Loader2, CheckCircle, Eye, EyeOff } from "lucide-react";
 import { supabase } from "../lib/supabaseClient"; // Ensure this path is correct
 import { useNavigate } from "react-router-dom";
+
+function ProviderIcon({ label, color, bg = "#ffffff" }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+      <rect x="1" y="1" width="18" height="18" rx="6" fill={bg} stroke={color} strokeWidth="2" />
+      <text
+        x="10"
+        y="14"
+        textAnchor="middle"
+        fontSize="10"
+        fontWeight="800"
+        fill={color}
+        fontFamily="Arial, sans-serif"
+      >
+        {label}
+      </text>
+    </svg>
+  );
+}
 
 export default function SignUp() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -19,6 +38,26 @@ export default function SignUp() {
     confirmPassword: "",
     role: "Learner" 
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleOAuth = async (provider) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/learner`,
+        },
+      });
+    } catch (err) {
+      console.error("OAuth sign-up failed:", err?.message || err);
+      setError(`OAuth with ${provider} failed. If this provider isn't configured in Supabase, enable it in the dashboard.`);
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -154,16 +193,50 @@ const handleSignUp = async (e) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Password</label>
-                <input name="password" type="password" onChange={handleChange} placeholder="••••••••" className="w-full px-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm" required />
+                <div className="relative group">
+                  <input
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    onChange={handleChange}
+                    placeholder="••••••••"
+                    className="w-full px-4 pr-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Confirm</label>
-                <input name="confirmPassword" type="password" onChange={handleChange} placeholder="••••••••" className="w-full px-4 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm" required />
+                <div className="relative group">
+                  <input
+                    name="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    onChange={handleChange}
+                    placeholder="••••••••"
+                    className="w-full px-4 pr-12 py-4 bg-gray-50 border border-gray-100 rounded-2xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all shadow-sm"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 transition-colors"
+                    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Access Level</label>
+              <label className="block text-sm font-bold text-gray-700 mb-2 ml-1">Account Type</label>
               <div className="relative group">
                 <select 
                   name="role"
@@ -172,6 +245,7 @@ const handleSignUp = async (e) => {
                 >
                   <option value="Learner">Student User</option>
                   <option value="Educator">Educator / Faculty</option>
+                  <option value="Admin">System Admin</option>
                 </select>
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
               </div>
@@ -183,6 +257,57 @@ const handleSignUp = async (e) => {
             >
               {loading ? <Loader2 className="animate-spin" /> : "SIGN UP"}
             </button>
+
+            {/* OAuth provider circles BELOW signup */}
+            <div className="pt-3">
+              <div className="text-center text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
+                or sign up with
+              </div>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("google")}
+                  disabled={loading}
+                  className="w-10 h-10 rounded-full border border-gray-100 bg-white hover:bg-gray-50 flex items-center justify-center transition-all active:scale-[0.98]"
+                  aria-label="Sign up with Google"
+                  title="Google"
+                >
+                  <img
+                    alt="Google"
+                    src="https://upload.wikimedia.org/wikipedia/commons/8/82/Google_Logo.svg"
+                    className="w-5 h-5"
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("yahoo")}
+                  disabled={loading}
+                  className="w-10 h-10 rounded-full border border-gray-100 bg-white hover:bg-gray-50 flex items-center justify-center transition-all active:scale-[0.98]"
+                  aria-label="Sign up with Yahoo"
+                  title="Yahoo"
+                >
+                  <img
+                    alt="Yahoo"
+                    src="https://upload.wikimedia.org/wikipedia/commons/3/3a/Yahoo!_(2019).svg"
+                    className="w-5 h-5"
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("azure")}
+                  disabled={loading}
+                  className="w-10 h-10 rounded-full border border-gray-100 bg-white hover:bg-gray-50 flex items-center justify-center transition-all active:scale-[0.98]"
+                  aria-label="Sign up with Microsoft"
+                  title="Microsoft"
+                >
+                  <img
+                    alt="Microsoft"
+                    src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg"
+                    className="w-5 h-5"
+                  />
+                </button>
+              </div>
+            </div>
           </form>
 
           <p className="mt-10 text-center text-gray-500">
