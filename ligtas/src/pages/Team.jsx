@@ -7,33 +7,33 @@ import { trackPageVisit } from '../lib/analytics';
 
 const teamMembers = [
   {
-    name: "Member 1",
-    role: "Project Lead / Developer",
+    name: "Rhozeth Carl R. Muyot",
+    role: "Project Manager / Developer",
     description: "Oversees project direction, system architecture, and core game logic implementation.",
     icon: <Code size={24} />,
     color: "orange",
   },
   {
-    name: "Member 2",
-    role: "Game Designer / 3D Artist",
+    name: "Arabela Raine T. Alfonso",
+    role: "Developer",
     description: "Designs game levels, creates low-poly 3D assets, and handles visual storytelling.",
     icon: <Palette size={24} />,
     color: "blue",
   },
   {
-    name: "Member 3",
-    role: "Frontend Developer",
+    name: "Jan Ryza S. Bacsal",
+    role: "Developer",
     description: "Builds the web platform, handles UI/UX design, and integrates backend services.",
     icon: <Gamepad2 size={24} />,
     color: "green",
   },
-  {
-    name: "Member 4",
-    role: "Researcher / QA",
-    description: "Conducts disaster preparedness research, writes educational content, and tests gameplay.",
-    icon: <BookOpen size={24} />,
-    color: "purple",
-  },
+  // {
+  //   name: "Member 4",
+  //   role: "Researcher / QA",
+  //   description: "Conducts disaster preparedness research, writes educational content, and tests gameplay.",
+  //   icon: <BookOpen size={24} />,
+  //   color: "purple",
+  // },
 ];
 
 const colorMap = {
