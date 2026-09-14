@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { logSystemEvent } from '../lib/systemLogs';
 import { Send, CheckCircle, Loader2 } from 'lucide-react';
 
 export default function FeedbackForm() {
@@ -24,6 +25,8 @@ export default function FeedbackForm() {
         read: false,
       });
       if (insertError) throw insertError;
+
+      logSystemEvent('feedback.submitted', { hasEmail: Boolean(formData.email.trim()) }, 'feedback');
 
       setSubmitted(true);
       setFormData({ name: '', email: '', message: '' });

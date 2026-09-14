@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { supabase } from '../../lib/supabase';
+import { logSystemEvent } from '../../lib/systemLogs';
 import { 
   Megaphone, Plus, Edit3, Trash2, X, 
   Send, Loader2, Clock, Tag 
@@ -52,6 +53,7 @@ export default function Announcements() {
           })
           .eq('id', editingId);
         if (error) throw error;
+        logSystemEvent('announcement.updated', { title: formData.title.trim() }, 'announcement', editingId);
       } else {
         const { error } = await supabase
           .from('announcements')
@@ -61,6 +63,7 @@ export default function Announcements() {
             category: formData.category,
           });
         if (error) throw error;
+        logSystemEvent('announcement.created', { title: formData.title.trim() }, 'announcement');
       }
 
       setFormData({ title: '', body: '', category: 'System' });
@@ -81,6 +84,7 @@ export default function Announcements() {
     try {
       const { error } = await supabase.from('announcements').delete().eq('id', id);
       if (error) throw error;
+      logSystemEvent('announcement.deleted', {}, 'announcement', id);
       await fetchAnnouncements();
     } catch (err) {
       console.error('Failed to delete:', err.message);

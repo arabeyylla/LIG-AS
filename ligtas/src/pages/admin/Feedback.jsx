@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { supabase } from '../../lib/supabase';
+import { logSystemEvent } from '../../lib/systemLogs';
 import { MessageSquare, Mail, Trash2, CheckCircle, Circle, Loader2, Inbox, User } from 'lucide-react';
 
 export default function Feedback() {
@@ -9,7 +10,17 @@ export default function Feedback() {
   const [filter, setFilter] = useState('all');
   const [deletingId, setDeletingId] = useState(null);
 
-  useEffect(() => { fetchFeedback(); }, []);
+  useEffect(() => {
+    fetchFeedback();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('admin-feedback')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feedback' }, fetchFeedback)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   async function fetchFeedback() {
     if (!supabase) { setLoading(false); return; }
@@ -33,6 +44,7 @@ export default function Feedback() {
       const { error } = await supabase.from('feedback').update({ read: !currentStatus }).eq('id', id);
       if (error) throw error;
       setMessages(prev => prev.map(m => m.id === id ? { ...m, read: !currentStatus } : m));
+      logSystemEvent(!currentStatus ? 'feedback.marked_read' : 'feedback.marked_unread', {}, 'feedback', id);
     } catch (err) {
       console.error('Failed to update read status:', err.message);
     }
@@ -45,6 +57,7 @@ export default function Feedback() {
       const { error } = await supabase.from('feedback').delete().eq('id', id);
       if (error) throw error;
       setMessages(prev => prev.filter(m => m.id !== id));
+      logSystemEvent('feedback.deleted', {}, 'feedback', id);
     } catch (err) {
       console.error('Failed to delete feedback:', err.message);
       alert('Failed to delete: ' + err.message);

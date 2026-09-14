@@ -1,6 +1,7 @@
 // src/lib/analytics.js
 // Utility functions for tracking page visits and downloads via Supabase
 import { supabase } from './supabase';
+import { logSystemEvent } from './systemLogs';
 
 /**
  * Track a page visit by upserting the counter for that page.
@@ -34,6 +35,7 @@ export async function trackPageVisit(pageName) {
   } catch (err) {
     console.error('Failed to track page visit:', err.message);
   }
+  logSystemEvent('page.viewed', { page: pageName }, 'page', pageName);
 }
 
 /**
@@ -67,4 +69,5 @@ export async function trackDownload() {
   } catch (err) {
     console.error('Failed to track download:', err.message);
   }
+  logSystemEvent('download.requested', {}, 'download');
 }

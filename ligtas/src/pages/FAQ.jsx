@@ -53,7 +53,7 @@ const faqData = [
     questions: [
       {
         q: "What types of disasters are simulated?",
-        a: "LIG+AS simulates five compound hazard scenarios common in the Philippines: Earthquake (seismic activity and structural collapse), Typhoon (storm surge and strong winds), Landslide (slope failure and debris flow), Flood (flash and rising water), Fire (structural/urban), and Volcanic Eruption (ashfall and pyroclastic hazards)."
+        a: "LIG+AS simulates five disaster scenarios: Earthquake, Typhoon, Landslide, Tsunami, and Volcanic Eruption. Each scenario focuses on relevant hazards and emergency-response skills."
       },
       {
         q: "How many levels are there?",

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { supabase } from '../../lib/supabase';
+import { logSystemEvent } from '../../lib/systemLogs';
 import { Image, Plus, Trash2, Loader2, Upload, X, ImagePlus, Eye } from 'lucide-react';
 
 export default function Gallery() {
@@ -23,7 +24,7 @@ export default function Gallery() {
       const { data, error } = await supabase
         .from('gallery')
         .select('*')
-        .order('uploaded_at', { ascending: false });
+        .order('created_at', { ascending: false });
       if (error) throw error;
       setImages(data || []);
     } catch (err) {
@@ -62,12 +63,13 @@ export default function Gallery() {
 
       // Save metadata to DB
       const { error: insertError } = await supabase.from('gallery').insert({
-        url: publicUrl,
+        image_url: publicUrl,
         caption: caption.trim() || null,
         file_name: selectedFile.name,
         storage_path: fileName,
       });
       if (insertError) throw insertError;
+      logSystemEvent('gallery.image_uploaded', { fileName: selectedFile.name }, 'gallery');
 
       setSelectedFile(null);
       setPreview(null);
@@ -94,6 +96,7 @@ export default function Gallery() {
       // Delete from DB
       const { error } = await supabase.from('gallery').delete().eq('id', image.id);
       if (error) throw error;
+      logSystemEvent('gallery.image_deleted', { fileName: image.file_name }, 'gallery', image.id);
       setImages(prev => prev.filter(i => i.id !== image.id));
     } catch (err) {
       console.error('Delete failed:', err.message);
@@ -174,9 +177,9 @@ export default function Gallery() {
             {images.map((image) => (
               <div key={image.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-lg transition-all group">
                 <div className="relative h-48 overflow-hidden">
-                  <img src={image.url} alt={image.caption || 'Gallery image'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  <img src={image.image_url} alt={image.caption || 'Gallery image'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
-                    <a href={image.url} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover:opacity-100 bg-white/90 p-3 rounded-xl transition-opacity"><Eye size={18} className="text-slate-700" /></a>
+                    <a href={image.image_url} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover:opacity-100 bg-white/90 p-3 rounded-xl transition-opacity"><Eye size={18} className="text-slate-700" /></a>
                   </div>
                 </div>
                 <div className="p-5 flex items-center justify-between">

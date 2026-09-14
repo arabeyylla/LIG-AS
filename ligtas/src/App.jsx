@@ -15,6 +15,7 @@ import Announcements from "./pages/admin/Announcements";
 import Feedback from "./pages/admin/Feedback";
 import Gallery from "./pages/admin/Gallery";
 import Analytics from "./pages/admin/Analytics";
+import SystemLogs from "./pages/admin/SystemLogs";
 import AdminRoute from "./components/AdminRoute";
 
 function App() {
@@ -45,6 +46,9 @@ function App() {
         } />
         <Route path="/admin/analytics" element={
           <AdminRoute><Analytics /></AdminRoute>
+        } />
+        <Route path="/admin/system-logs" element={
+          <AdminRoute><SystemLogs /></AdminRoute>
         } />
       </Routes>
     </BrowserRouter>

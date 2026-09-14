@@ -8,7 +8,18 @@ export default function Analytics() {
   const [downloads, setDownloads] = useState({ total: 0, last_download: null });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchAnalytics(); }, []);
+  useEffect(() => {
+    fetchAnalytics();
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('admin-analytics')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'page_visits' }, fetchAnalytics)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'downloads' }, fetchAnalytics)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   async function fetchAnalytics() {
     if (!supabase) { setLoading(false); return; }

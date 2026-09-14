@@ -115,12 +115,12 @@ export default function About() {
             <div className="order-1 lg:order-2 space-y-6">
               <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black text-slate-900 tracking-tighter">The Game World</h2>
               <p className="text-gray-600 leading-relaxed text-sm sm:text-base lg:text-lg">
-                LIG+AS features low-poly 3D environments modeled after common Philippine settings — residential barangays, school buildings, commercial areas, and coastal communities.
+                LIG+AS features original low-poly 3D environments designed to support each disaster scenario and its learning objectives.
               </p>
               <div className="space-y-4">
                 {[
-                  { icon: <Globe size={20} />, title: "Localized Environments", desc: "Maps designed based on typical Philippine geography, architecture, and urban planning.", color: "orange" },
-                  { icon: <Zap size={20} />, title: "Dynamic Hazards", desc: "Disasters evolve in real-time — fire spreads, water rises, structures weaken progressively.", color: "blue" },
+                  { icon: <Globe size={20} />, title: "Purpose-Built Environments", desc: "Original maps created to support the objectives and challenges of each scenario.", color: "orange" },
+                  { icon: <Zap size={20} />, title: "Scenario-Based Challenges", desc: "Players respond to earthquake, typhoon, landslide, tsunami, and volcanic eruption scenarios.", color: "blue" },
                   { icon: <Target size={20} />, title: "Objective-Driven Levels", desc: "Each stage has clear survival objectives that teach specific emergency response protocols.", color: "green" },
                 ].map((item, i) => (
                   <div key={i} className="flex items-start gap-4">

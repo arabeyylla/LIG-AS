@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowLeft, Lock, Mail, Loader2, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import { logSystemEvent } from '../../lib/systemLogs';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function AdminLogin() {
       });
 
       if (authError) throw authError;
+      logSystemEvent('admin.signed_in');
       navigate("/admin/dashboard");
     } catch (err) {
       console.error("Admin login failed:", err.message);

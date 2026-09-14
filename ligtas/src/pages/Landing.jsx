@@ -13,7 +13,7 @@ import { trackPageVisit } from '../lib/analytics';
 export default function Landing() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [latestAnnouncement, setLatestAnnouncement] = useState(null);
-  const [announcementLoading, setAnnouncementLoading] = useState(true);
+  const [announcementLoading, setAnnouncementLoading] = useState(() => Boolean(supabase));
   const [galleryImages, setGalleryImages] = useState(null);
 
   const defaultImages = [
@@ -28,12 +28,51 @@ export default function Landing() {
 
   useEffect(() => { const i = setInterval(() => setCurrentSlide((p) => (p + 1) % gameImages.length), 5000); return () => clearInterval(i); }, [gameImages.length]);
   useEffect(() => { trackPageVisit('home'); }, []);
-  useEffect(() => { if (!supabase) return; supabase.from('gallery').select('url, caption').order('uploaded_at', { ascending: false }).then(({ data }) => { if (data?.length) setGalleryImages(data.map(d => ({ url: d.url, title: d.caption || 'LIG+AS' }))); }); }, []);
   useEffect(() => {
-    if (!supabase) { setAnnouncementLoading(false); return; }
-    supabase.from('announcements').select('*').order('created_at', { ascending: false }).limit(1).single()
-      .then(({ data, error }) => { if (!error || error.code === 'PGRST116') setLatestAnnouncement(data || null); })
-      .finally(() => setAnnouncementLoading(false));
+    if (!supabase) return;
+
+    const fetchGallery = async () => {
+      const { data, error } = await supabase
+        .from('gallery')
+        .select('image_url, caption')
+        .order('created_at', { ascending: false });
+      if (error) {
+        console.error('Failed to load gallery:', error.message);
+        return;
+      }
+      setGalleryImages((data || []).map((image) => ({ url: image.image_url, title: image.caption || 'LIG+AS' })));
+    };
+
+    fetchGallery();
+    const channel = supabase
+      .channel('public-gallery')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gallery' }, fetchGallery)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+  useEffect(() => {
+    if (!supabase) return;
+
+    const fetchLatestAnnouncement = async () => {
+      const { data, error } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (!error || error.code === 'PGRST116') setLatestAnnouncement(data || null);
+      else console.error('Failed to load announcement:', error.message);
+      setAnnouncementLoading(false);
+    };
+
+    fetchLatestAnnouncement();
+    const channel = supabase
+      .channel('public-announcements')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, fetchLatestAnnouncement)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   return (
@@ -96,12 +135,12 @@ export default function Landing() {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="p-5 sm:p-6 lg:p-8 bg-slate-50 rounded-2xl border border-slate-100">
-                  <h4 className="font-black text-slate-800 mb-2 text-sm sm:text-base lg:text-lg">Localized Maps</h4>
-                  <p className="text-xs sm:text-sm lg:text-base text-gray-500">Simulations based on similar Philippine geography and layout.</p>
+                  <h4 className="font-black text-slate-800 mb-2 text-sm sm:text-base lg:text-lg">Purpose-Built Maps</h4>
+                  <p className="text-xs sm:text-sm lg:text-base text-gray-500">Original low-poly environments designed for each disaster scenario.</p>
                 </div>
                 <div className="p-5 sm:p-6 lg:p-8 bg-slate-50 rounded-2xl border border-slate-100">
-                  <h4 className="font-black text-slate-800 mb-2 text-sm sm:text-base lg:text-lg">Disaster Physics</h4>
-                  <p className="text-xs sm:text-sm lg:text-base text-gray-500">Realistic fire spread, flood levels, and structural earthquake damage.</p>
+                  <h4 className="font-black text-slate-800 mb-2 text-sm sm:text-base lg:text-lg">Scenario-Based Training</h4>
+                  <p className="text-xs sm:text-sm lg:text-base text-gray-500">Practice preparedness skills through earthquake, typhoon, landslide, tsunami, and volcanic eruption scenarios.</p>
                 </div>
               </div>
               <Link to="/about" className="flex items-center gap-3 font-black text-slate-800 hover:text-orange-500 transition-colors group text-sm sm:text-base lg:text-lg">
@@ -117,7 +156,7 @@ export default function Landing() {
         <div className="px-4 sm:px-8 lg:px-[5%]">
           <div className="text-center mb-10 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black text-slate-900 tracking-tighter">Simulated Disasters</h2>
-            <p className="text-gray-500 mt-3 text-sm sm:text-lg lg:text-xl">Train for six compound hazard scenarios that matter most in the Philippines.</p>
+            <p className="text-gray-500 mt-3 text-sm sm:text-lg lg:text-xl">Train across five disaster scenarios with practical survival objectives.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
             {[
@@ -148,7 +187,7 @@ export default function Landing() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-10">
             {[
-              { icon: <Gamepad2 size={28} />, title: "Interactive Modules", desc: "Engage with realistic disaster simulations covering typhoons, earthquakes, fires, and floods.", color: "orange" },
+              { icon: <Gamepad2 size={28} />, title: "Interactive Modules", desc: "Engage with disaster simulations covering earthquakes, typhoons, landslides, tsunamis, and volcanic eruptions.", color: "orange" },
               { icon: <Shield size={28} />, title: "Safety Training", desc: "Learn real-world emergency protocols through hands-on simulated experiences.", color: "blue" },
               { icon: <Trophy size={28} />, title: "Stage Progression", desc: "Progress through increasingly challenging levels and master survival skills step by step.", color: "green" },
             ].map((item, i) => (

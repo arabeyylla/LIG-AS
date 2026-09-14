@@ -1,9 +1,10 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
+import { logSystemEvent } from '../../lib/systemLogs';
 import { 
   LayoutDashboard, Megaphone, MessageSquare, 
-  Image, BarChart3, LogOut, ChevronRight, Menu, X
+  Image, BarChart3, ClipboardList, LogOut, ChevronRight, Menu, X
 } from "lucide-react";
 
 const navItems = [
@@ -12,6 +13,7 @@ const navItems = [
   { path: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { path: "/admin/gallery", label: "Gallery", icon: Image },
   { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
+  { path: "/admin/system-logs", label: "System Logs", icon: ClipboardList },
 ];
 
 export default function AdminLayout({ children }) {
@@ -19,6 +21,7 @@ export default function AdminLayout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
+    await logSystemEvent('admin.signed_out');
     if (supabase) await supabase.auth.signOut();
     navigate("/admin/login");
   };
