@@ -14,12 +14,14 @@ export async function trackPageVisit(pageName) {
     // Try RPC first (most efficient)
     const { error } = await supabase.rpc('increment_page_visit', { page: pageName });
     if (error) {
-      // Fallback: try direct upsert
+      // Fallback: try direct upsert. `.maybeSingle()` (not `.single()`) so a
+      // page visited for the first time (no existing row) returns null
+      // instead of throwing a 406.
       const { data: existing } = await supabase
         .from('page_visits')
         .select('count')
         .eq('page_name', pageName)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         const { error: updateError } = await supabase
@@ -50,12 +52,14 @@ export async function trackDownload() {
   try {
     const { error } = await supabase.rpc('increment_download');
     if (error) {
-      // Fallback: direct update
+      // Fallback: direct update. `.maybeSingle()` (not `.single()`) so a
+      // fresh downloads table with no row yet returns null instead of
+      // throwing a 406.
       const { data: existing } = await supabase
         .from('downloads')
         .select('total')
         .eq('id', 1)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         const { error: updateError } = await supabase

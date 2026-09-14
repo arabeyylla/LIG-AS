@@ -26,19 +26,20 @@ export default function Analytics() {
     try {
       setLoading(true);
 
-      // Fetch page visits
+      // Fetch page visits. Sorted client-side rather than via `.order('count', ...)`
+      // so this doesn't 400 if the `count` column/migration isn't live yet on
+      // this Supabase project — it just falls back to `0` per row instead.
       const { data: visitsData } = await supabase
         .from('page_visits')
-        .select('*')
-        .order('count', { ascending: false });
-      setPageVisits(visitsData || []);
+        .select('*');
+      setPageVisits((visitsData || []).slice().sort((a, b) => (b.count || 0) - (a.count || 0)));
 
-      // Fetch downloads
+      // Fetch downloads. `.maybeSingle()` (not `.single()`) so a fresh
+      // `downloads` table with zero rows returns null instead of a 406.
       const { data: dlData } = await supabase
         .from('downloads')
         .select('*')
-        .limit(1)
-        .single();
+        .maybeSingle();
       if (dlData) setDownloads(dlData);
     } catch (err) {
       console.error('Failed to fetch analytics:', err.message);

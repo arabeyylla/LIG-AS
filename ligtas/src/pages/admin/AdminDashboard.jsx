@@ -17,7 +17,9 @@ export default function AdminDashboard() {
 
       let downloads = 0;
       try {
-        const { data } = await supabase.from('downloads').select('total').limit(1).single();
+        // `.maybeSingle()` (not `.single()`) so a fresh `downloads` table with
+        // zero rows returns null instead of throwing a 406.
+        const { data } = await supabase.from('downloads').select('total').maybeSingle();
         if (data) downloads = data.total || 0;
       } catch (e) {}
 
