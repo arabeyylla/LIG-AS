@@ -16,94 +16,186 @@ import {
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
-// Question bank
-// The SAME question set is used for both Pre- and Post-Assessment so scores
-// are directly comparable. Add/edit questions here — `correctIndex` is the
-// zero-based index of the correct option. `category` is the display label
-// on the question card; `module` is the normalized disaster_module value
-// (Earthquake / Typhoon / Flood / General) written to Supabase — see
-// handleSubmit, which groups questions by `module` into separate rows.
+// Question bank — PARALLEL FORMS design.
+// Pre- and Post-Assessment intentionally use DIFFERENT scenarios per module
+// (not the same questions reworded) so a post-test score reflects retained
+// understanding rather than memorization of the pre-test. Both sets still
+// cover the same 4 modules with the SAME number of questions per module
+// (Earthquake x2, Typhoon x2, Flood x1, General x1), which is what keeps
+// the admin analytics' Pre-vs-Post and per-module comparisons meaningful.
+//
+// Distractors are written to be plausible rather than obviously wrong
+// (common myths, half-right actions, tempting-but-risky shortcuts) so the
+// questions test reasoning, not just elimination.
+//
+// `category` is the display label on the question card; `module` is the
+// normalized disaster_module value written to Supabase — see handleSubmit,
+// which groups questions by `module` into separate rows. `correctIndex` is
+// the zero-based index of the correct option.
 // ---------------------------------------------------------------------------
-const QUESTIONS = [
+const PRE_QUESTIONS = [
   {
-    id: 'eq1',
+    id: 'pre-eq1',
     category: 'Earthquake',
     module: 'Earthquake',
-    question: 'What should you do immediately when you feel an earthquake while indoors?',
+    question: 'You are inside a classroom on the 3rd floor when strong shaking begins. What is the safest immediate action?',
     options: [
-      'Run outside immediately',
-      'Drop, Cover, and Hold On under sturdy furniture',
-      'Stand in a doorway',
-      'Use the elevator to evacuate quickly',
+      'Immediately run for the stairwell to exit the building',
+      'Drop to the ground, take cover under a sturdy desk, and hold on until the shaking stops',
+      'Move to a doorway and brace yourself against the frame',
+      'Stand against an interior wall away from windows',
     ],
     correctIndex: 1,
   },
   {
-    id: 'eq2',
+    id: 'pre-eq2',
     category: 'Earthquake',
     module: 'Earthquake',
-    question: 'After a strong earthquake, what should you check before re-entering a building?',
+    question: 'Immediately after strong shaking stops in a multi-story building, what should occupants do first, before evacuating?',
     options: [
-      'Nothing — it\'s safe once the shaking stops',
-      'Structural damage, gas leaks, and fire hazards',
-      'Whether your phone still has signal',
-      'If the power is back on',
+      'Take the elevator down quickly in case of aftershocks',
+      'Gather personal belongings from their desks before leaving',
+      'Check themselves and others for injuries, then check for hazards like broken glass or gas odors',
+      'Wait for an "all clear" announcement over the intercom before doing anything',
     ],
-    correctIndex: 1,
+    correctIndex: 2,
   },
   {
-    id: 'ty1',
+    id: 'pre-ty1',
     category: 'Typhoon',
     module: 'Typhoon',
-    question: 'Which of the following is the BEST action to take before a typhoon makes landfall?',
+    question: 'A typhoon warning has just been raised for your area, and the storm is still 24 hours away. What should you prioritize now?',
     options: [
-      'Wait until the storm arrives to prepare',
-      'Secure loose objects outside and prepare an emergency kit',
-      'Go outside to watch the storm',
-      'Open all windows to equalize pressure',
+      'Wait until the rain starts before deciding whether to prepare',
+      'Charge devices, secure loose outdoor items, and stock up on water and non-perishable food',
+      'Board up all windows and evacuate immediately, regardless of your area’s risk level',
+      'Turn off the main water supply to prevent flooding inside the house',
     ],
     correctIndex: 1,
   },
   {
-    id: 'ty2',
+    id: 'pre-ty2',
     category: 'Typhoon',
     module: 'Typhoon',
-    question: 'What is the primary purpose of an evacuation center during a typhoon?',
+    question: 'During the height of a typhoon, the wind suddenly calms and the sky clears. What does this most likely mean?',
     options: [
-      'To provide vacation lodging',
-      'To offer safe, temporary shelter away from hazard zones',
-      'To store government equipment',
-      'To host community events',
+      'The typhoon has passed and it is now safe to go outside',
+      'You are in the eye of the storm — violent winds will resume, likely from the opposite direction',
+      'The storm has weakened into a tropical depression',
+      'It is safe to check for damage around your property',
     ],
     correctIndex: 1,
   },
   {
-    id: 'fl1',
+    id: 'pre-fl1',
     category: 'Flood',
     module: 'Flood',
-    question: 'During a flood, which of these poses the greatest hidden danger?',
+    question: 'Floodwater has risen ankle-deep on the street outside your home, and your car is parked there. What is the safest choice?',
     options: [
-      'Walking or driving through floodwaters',
-      'Staying on the second floor',
-      'Listening to a battery-powered radio',
-      'Turning off electricity at the main breaker',
+      'Quickly drive the car to higher ground before the water rises further',
+      'Leave the car — moving water as shallow as six inches can sweep it off the road or stall the engine',
+      'Push the car manually into a garage to protect it',
+      'Wait inside the car until the water recedes',
     ],
-    correctIndex: 0,
+    correctIndex: 1,
   },
   {
-    id: 'gen1',
+    id: 'pre-gen1',
     category: 'General Preparedness',
     module: 'General',
-    question: 'What should a basic emergency ("go bag") include?',
+    question: 'You’re assembling a family emergency ("go") bag for the first 72 hours. Which item is LEAST essential to prioritize?',
     options: [
-      'Only cash and jewelry',
-      'Water, food, first aid kit, flashlight, and important documents',
-      'Only a change of clothes',
-      'Nothing — emergency responders provide everything',
+      'A three-day supply of water and non-perishable food',
+      'Copies of important documents in a waterproof pouch',
+      'A portable gaming console for entertainment',
+      'A battery-powered or hand-crank radio',
+    ],
+    correctIndex: 2,
+  },
+];
+
+const POST_QUESTIONS = [
+  {
+    id: 'post-eq1',
+    category: 'Earthquake',
+    module: 'Earthquake',
+    question: 'While driving during an earthquake, what is the correct response?',
+    options: [
+      'Speed up to reach a safe location as quickly as possible',
+      'Slow down and pull over away from buildings, bridges, and overpasses, then stay inside until shaking stops',
+      'Stop immediately wherever you are, even if that is under an overpass',
+      'Get out of the car and lie flat on the road',
+    ],
+    correctIndex: 1,
+  },
+  {
+    id: 'post-eq2',
+    category: 'Earthquake',
+    module: 'Earthquake',
+    question: 'Several days after a major earthquake, smaller aftershocks are still occurring. What should residents of a visibly cracked building do?',
+    options: [
+      'Ignore the aftershocks since the main earthquake already happened',
+      'Move back in as soon as the shaking feels weaker than the main quake',
+      'Avoid re-entering until officials have inspected and cleared the structure, since aftershocks can cause further collapse',
+      'Only avoid the building if it has already collapsed',
+    ],
+    correctIndex: 2,
+  },
+  {
+    id: 'post-ty1',
+    category: 'Typhoon',
+    module: 'Typhoon',
+    question: 'Local officials issue a mandatory evacuation order for your area as a typhoon approaches. What should you do?',
+    options: [
+      'Stay home since your house has survived previous typhoons without damage',
+      'Evacuate to the designated evacuation center as instructed, even if the weather still looks calm',
+      'Wait until conditions visibly worsen before deciding',
+      'Evacuate only if you personally judge the storm to be dangerous enough',
+    ],
+    correctIndex: 1,
+  },
+  {
+    id: 'post-ty2',
+    category: 'Typhoon',
+    module: 'Typhoon',
+    question: 'After a typhoon passes, you see a downed power line near your street. What is the correct action?',
+    options: [
+      'Move it carefully to the side of the road so vehicles can pass',
+      'Assume it may still be live, stay away, and report it to the authorities immediately',
+      'It’s safe to touch as long as it looks undamaged',
+      'Only avoid it if it is visibly sparking',
+    ],
+    correctIndex: 1,
+  },
+  {
+    id: 'post-fl1',
+    category: 'Flood',
+    module: 'Flood',
+    question: 'You need to evacuate on foot and the only route crosses moving floodwater that looks shallow. What is the safest approach?',
+    options: [
+      'Walk quickly through the fastest-looking path to minimize exposure time',
+      'Avoid the water if at all possible; if you must cross, use a stick to check depth and never cross water above your knees',
+      'It’s safe to wade through as long as it doesn’t reach your waist',
+      'Hold hands with others in a line and walk through together for stability',
+    ],
+    correctIndex: 1,
+  },
+  {
+    id: 'post-gen1',
+    category: 'General Preparedness',
+    module: 'General',
+    question: 'Based on what you practiced in LIG+AS, which best describes an effective household disaster plan?',
+    options: [
+      'A plan that only covers what to do during the disaster itself',
+      'A plan covering prevention, response during the event, AND recovery afterward, practiced regularly by the whole household',
+      'A plan that is created once and never needs to be updated',
+      'A plan that only one family member needs to know in detail',
     ],
     correctIndex: 1,
   },
 ];
+
+const QUESTION_SETS = { pre: PRE_QUESTIONS, post: POST_QUESTIONS };
 
 const DISASTER_MODULES = ['Earthquake', 'Typhoon', 'Flood', 'General'];
 
@@ -190,8 +282,12 @@ export default function Assessment() {
     if (cached.participantId) setParticipantId(cached.participantId);
   }, []);
 
+  // 'results' mode doesn't render a question form, so falling back to
+  // PRE_QUESTIONS there is inert — only 'pre' and 'post' actually use this.
+  const activeQuestions = QUESTION_SETS[mode] || PRE_QUESTIONS;
+
   const answeredCount = Object.keys(answers).length;
-  const allAnswered = answeredCount === QUESTIONS.length;
+  const allAnswered = answeredCount === activeQuestions.length;
 
   function handleModeChange(nextMode) {
     if (nextMode === mode) return;
@@ -237,7 +333,7 @@ export default function Assessment() {
 
     const trimmedId = participantId.trim();
     const assessmentType = mode === 'pre' ? 'pre-assessment' : 'post-assessment';
-    const overallScore = QUESTIONS.reduce((sum, q) => sum + (answers[q.id] === q.correctIndex ? 1 : 0), 0);
+    const overallScore = activeQuestions.reduce((sum, q) => sum + (answers[q.id] === q.correctIndex ? 1 : 0), 0);
 
     try {
       // --- Supabase insert ---------------------------------------------------
@@ -248,7 +344,7 @@ export default function Assessment() {
       // an identical `created_at` (Postgres evaluates now() once per
       // statement), so the admin UI can regroup them into one "attempt".
       const rows = DISASTER_MODULES.map((moduleName) => {
-        const moduleQuestions = QUESTIONS.filter((q) => q.module === moduleName);
+        const moduleQuestions = activeQuestions.filter((q) => q.module === moduleName);
         const moduleScore = moduleQuestions.reduce((sum, q) => sum + (answers[q.id] === q.correctIndex ? 1 : 0), 0);
         const answersPayload = moduleQuestions.map((q) => ({
           questionId: q.id,
@@ -273,12 +369,12 @@ export default function Assessment() {
       if (insertError) throw insertError;
       // ------------------------------------------------------------------------
 
-      logSystemEvent('assessment.submitted', { type: assessmentType, score: overallScore, total: QUESTIONS.length }, 'assessment_results', trimmedId);
+      logSystemEvent('assessment.submitted', { type: assessmentType, score: overallScore, total: activeQuestions.length }, 'assessment_results', trimmedId);
 
       const payload = {
         type: mode,
         score: overallScore,
-        total: QUESTIONS.length,
+        total: activeQuestions.length,
         confidence,
         submittedAt: new Date().toISOString(),
       };
@@ -381,23 +477,23 @@ export default function Assessment() {
               {/* Progress */}
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                  {answeredCount} of {QUESTIONS.length} answered
+                  {answeredCount} of {activeQuestions.length} answered
                 </span>
                 <div className="w-32 sm:w-48 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-orange-500 transition-all duration-300"
-                    style={{ width: `${(answeredCount / QUESTIONS.length) * 100}%` }}
+                    style={{ width: `${(answeredCount / activeQuestions.length) * 100}%` }}
                   />
                 </div>
               </div>
 
               {/* MCQ cards */}
-              {QUESTIONS.map((q, idx) => (
+              {activeQuestions.map((q, idx) => (
                 <div key={q.id} className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-black text-orange-500 uppercase tracking-widest">{q.category}</span>
                     <span className="text-xs font-bold text-gray-300">
-                      Question {idx + 1} of {QUESTIONS.length}
+                      Question {idx + 1} of {activeQuestions.length}
                     </span>
                   </div>
                   <h3 className="text-base sm:text-lg font-black text-slate-800 mb-5">{q.question}</h3>

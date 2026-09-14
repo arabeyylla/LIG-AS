@@ -22,14 +22,16 @@ export async function trackPageVisit(pageName) {
         .single();
 
       if (existing) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('page_visits')
           .update({ count: existing.count + 1 })
           .eq('page_name', pageName);
+        if (updateError) throw updateError;
       } else {
-        await supabase
+        const { error: insertError } = await supabase
           .from('page_visits')
           .insert({ page_name: pageName, count: 1 });
+        if (insertError) throw insertError;
       }
     }
   } catch (err) {
@@ -56,14 +58,16 @@ export async function trackDownload() {
         .single();
 
       if (existing) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('downloads')
           .update({ total: existing.total + 1, last_download: new Date().toISOString() })
           .eq('id', 1);
+        if (updateError) throw updateError;
       } else {
-        await supabase
+        const { error: insertError } = await supabase
           .from('downloads')
           .insert({ id: 1, total: 1, last_download: new Date().toISOString() });
+        if (insertError) throw insertError;
       }
     }
   } catch (err) {
