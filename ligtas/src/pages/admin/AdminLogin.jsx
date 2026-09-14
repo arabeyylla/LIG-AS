@@ -24,13 +24,13 @@ export default function AdminLogin() {
     }
 
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (authError) throw authError;
-      logSystemEvent('admin.signed_in');
+      await logSystemEvent('admin.signed_in', {}, 'admin', authData.user?.id, authData.user);
       navigate("/admin/dashboard");
     } catch (err) {
       console.error("Admin login failed:", err.message);

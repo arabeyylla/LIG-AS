@@ -10,6 +10,7 @@ export default function Navbar() {
     { to: "/how-to-play", label: "How to Play" },
     { to: "/team", label: "Team" },
     { to: "/faq", label: "FAQ" },
+    { to: "/assessment", label: "Assessment" },
   ];
 
   return (

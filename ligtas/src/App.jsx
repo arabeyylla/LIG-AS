@@ -7,6 +7,7 @@ import HowToPlay from "./pages/HowToPlay";
 import Team from "./pages/Team";
 import FAQ from "./pages/FAQ";
 import Download from "./pages/Download";
+import Assessment from "./pages/Assessment";
 
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -14,9 +15,11 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import Announcements from "./pages/admin/Announcements";
 import Feedback from "./pages/admin/Feedback";
 import Gallery from "./pages/admin/Gallery";
+import Assessments from "./pages/admin/Assessments";
 import Analytics from "./pages/admin/Analytics";
 import SystemLogs from "./pages/admin/SystemLogs";
 import AdminRoute from "./components/AdminRoute";
+import AdminPageError from './components/AdminPageError';
 
 function App() {
   return (
@@ -28,6 +31,7 @@ function App() {
         <Route path="/how-to-play" element={<HowToPlay />} />
         <Route path="/team" element={<Team />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/assessment" element={<Assessment />} />
         <Route path="/download" element={<Download />} />
 
         {/* Admin Routes */}
@@ -43,6 +47,9 @@ function App() {
         } />
         <Route path="/admin/gallery" element={
           <AdminRoute><Gallery /></AdminRoute>
+        } />
+        <Route path="/admin/assessments" element={
+          <AdminRoute><AdminPageError><Assessments /></AdminPageError></AdminRoute>
         } />
         <Route path="/admin/analytics" element={
           <AdminRoute><Analytics /></AdminRoute>

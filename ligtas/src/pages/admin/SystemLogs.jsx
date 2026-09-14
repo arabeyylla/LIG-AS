@@ -6,6 +6,7 @@ import { ClipboardList, Loader2, RefreshCw } from 'lucide-react';
 export default function SystemLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   async function fetchLogs() {
     if (!supabase) { setLoading(false); return; }
@@ -18,8 +19,10 @@ export default function SystemLogs() {
         .limit(100);
       if (error) throw error;
       setLogs(data || []);
+      setError(null);
     } catch (error) {
       console.error('Failed to load system logs:', error.message);
+      setError(error.message);
     } finally {
       setLoading(false);
     }
@@ -46,7 +49,9 @@ export default function SystemLogs() {
           <button onClick={fetchLogs} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-sm hover:border-orange-400 hover:text-orange-500"><RefreshCw size={16} /> Refresh</button>
         </div>
 
-        {loading ? (
+        {error ? (
+          <div className="bg-red-50 border border-red-100 rounded-3xl p-8 text-red-700"><p className="font-black">System logs could not be loaded.</p><p className="text-sm mt-2">{error}</p></div>
+        ) : loading ? (
           <div className="flex flex-col items-center py-20 gap-4 text-slate-400"><Loader2 className="animate-spin" size={36} /><span className="font-bold">Loading logs...</span></div>
         ) : logs.length === 0 ? (
           <div className="bg-white border border-slate-100 rounded-3xl py-20 text-center"><ClipboardList className="mx-auto text-slate-300 mb-4" size={42} /><p className="font-bold text-slate-500">No log entries yet.</p></div>

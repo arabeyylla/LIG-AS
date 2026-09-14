@@ -2,9 +2,9 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { logSystemEvent } from '../../lib/systemLogs';
-import { 
-  LayoutDashboard, Megaphone, MessageSquare, 
-  Image, BarChart3, ClipboardList, LogOut, ChevronRight, Menu, X
+import {
+  LayoutDashboard, Megaphone, MessageSquare,
+  Image, BarChart3, ClipboardList, GraduationCap, LogOut, ChevronRight, Menu, X
 } from "lucide-react";
 
 const navItems = [
@@ -12,6 +12,7 @@ const navItems = [
   { path: "/admin/announcements", label: "Announcements", icon: Megaphone },
   { path: "/admin/feedback", label: "Feedback", icon: MessageSquare },
   { path: "/admin/gallery", label: "Gallery", icon: Image },
+  { path: "/admin/assessments", label: "Assessments", icon: GraduationCap },
   { path: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { path: "/admin/system-logs", label: "System Logs", icon: ClipboardList },
 ];

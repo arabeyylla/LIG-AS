@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Download, Eye, MessageSquare, Megaphone, Activity, TrendingUp, Loader2 } from 'lucide-react';
+import { Download, Eye, MessageSquare, Megaphone, Activity, TrendingUp, Loader2, GraduationCap } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import AdminLayout from '../../components/layout/AdminLayout';
+import AssessmentAnalytics from '../../components/admin/AssessmentAnalytics';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ downloads: 0, pageVisits: 0, feedbackCount: 0, announcementCount: 0 });
@@ -68,6 +69,7 @@ export default function AdminDashboard() {
               <QuickAction label="Post a new announcement" link="/admin/announcements" />
               <QuickAction label="Check feedback inbox" link="/admin/feedback" />
               <QuickAction label="Manage game gallery" link="/admin/gallery" />
+              <QuickAction label="Review assessment results" link="/admin/assessments" />
               <QuickAction label="View detailed analytics" link="/admin/analytics" />
             </div>
           </div>
@@ -94,6 +96,17 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <GraduationCap className="text-orange-500" size={24} />
+              <h3 className="font-black text-slate-800 text-lg lg:text-xl">Assessment Snapshot</h3>
+            </div>
+            <a href="/admin/assessments" className="text-sm font-bold text-orange-500 hover:text-orange-600 transition-colors">View all &rarr;</a>
+          </div>
+          <AssessmentAnalytics compact />
         </div>
       </div>
     </AdminLayout>
