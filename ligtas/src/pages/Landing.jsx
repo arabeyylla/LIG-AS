@@ -6,7 +6,7 @@ import Landingpage from "../assets/LIGTAS Landing.png";
 import game from "../assets/game.png";
 import failed from "../assets/failed.png";
 import { Link } from 'react-router-dom';
-import { Gamepad2, Users, Trophy, ChevronRight, AlertTriangle, ChevronLeft, Shield, MapPin, Flame, Droplets } from "lucide-react";
+import { Gamepad2, Users, Trophy, ChevronRight, AlertTriangle, ChevronLeft, Shield, MapPin, Flame, Droplets, Layers, Mountain } from "lucide-react";
 import { supabase } from '../lib/supabase';
 import { trackPageVisit } from '../lib/analytics';
 
@@ -117,14 +117,15 @@ export default function Landing() {
         <div className="px-4 sm:px-8 lg:px-[5%]">
           <div className="text-center mb-10 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black text-slate-900 tracking-tighter">Simulated Disasters</h2>
-            <p className="text-gray-500 mt-3 text-sm sm:text-lg lg:text-xl">Train for the scenarios that matter most in the Philippines.</p>
+            <p className="text-gray-500 mt-3 text-sm sm:text-lg lg:text-xl">Train for six compound hazard scenarios that matter most in the Philippines.</p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
             {[
-              { icon: <Flame size={28} />, title: "Fire", desc: "Navigate through burning structures and learn evacuation protocols.", color: "red" },
-              { icon: <Droplets size={28} />, title: "Flood", desc: "Escape rising water levels and find safe elevated ground.", color: "blue" },
               { icon: <AlertTriangle size={28} />, title: "Earthquake", desc: "React to structural damage and practice Drop-Cover-Hold.", color: "orange" },
               { icon: <MapPin size={28} />, title: "Typhoon", desc: "Secure your environment and evacuate before the storm hits.", color: "teal" },
+              { icon: <Layers size={28} />, title: "Landslide", desc: "Recognize warning signs and move to stable ground before slopes fail.", color: "amber" },
+              { icon: <Droplets size={28} />, title: "Tsunami", desc: "Escape rising water levels and find safe elevated ground.", color: "blue" },
+              { icon: <Mountain size={28} />, title: "Volcanic Eruption", desc: "Survive ashfall and evacuate active hazard zones in time.", color: "rose" },
             ].map((item, i) => (
               <div key={i} className="bg-white p-6 sm:p-8 lg:p-10 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 text-center">
                 <div className={`w-14 h-14 lg:w-16 lg:h-16 bg-${item.color}-100 text-${item.color}-600 rounded-xl flex items-center justify-center mb-5 mx-auto`}>

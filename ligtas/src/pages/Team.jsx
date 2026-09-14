@@ -2,7 +2,7 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
-import { Users, Code, Palette, Gamepad2, BookOpen, GraduationCap } from "lucide-react";
+import { Code, Palette, Gamepad2, GraduationCap } from "lucide-react";
 import { trackPageVisit } from '../lib/analytics';
 
 const teamMembers = [
@@ -27,13 +27,6 @@ const teamMembers = [
     icon: <Gamepad2 size={24} />,
     color: "green",
   },
-  // {
-  //   name: "Member 4",
-  //   role: "Researcher / QA",
-  //   description: "Conducts disaster preparedness research, writes educational content, and tests gameplay.",
-  //   icon: <BookOpen size={24} />,
-  //   color: "purple",
-  // },
 ];
 
 const colorMap = {
@@ -77,7 +70,7 @@ export default function Team() {
             <p className="text-gray-500 mt-3 text-lg">Each member brings unique skills to make LIG+AS possible.</p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-4xl mx-auto">
             {teamMembers.map((member, index) => {
               const colors = colorMap[member.color];
               return (
@@ -94,10 +87,6 @@ export default function Team() {
               );
             })}
           </div>
-
-          <p className="text-center text-sm text-gray-400 mt-10">
-            Replace "Member 1-4" with actual team member names and photos.
-          </p>
         </div>
       </section>
 
@@ -114,13 +103,13 @@ export default function Team() {
               </h2>
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
-                  LIG+AS was developed as a capstone project with the goal of addressing the gap in disaster preparedness education in the Philippines through interactive, technology-driven learning.
+                  LIG+AS was developed as a capstone project to address the gap between disaster knowledge and disaster-ready action — a documented issue in DRRM practice in the Philippines. Rather than focusing on awareness alone, the project centers on procedural preparedness for compound hazard scenarios.
                 </p>
                 <p>
-                  The project combines game development, educational research, and web technologies to create an accessible tool that can reach a wide audience — from students to community members.
+                  The system is composed of two connected parts: a mobile-based gamified simulation for repeated, consequence-based rehearsal, and a web-based for informative contents.
                 </p>
                 <p>
-                  By gamifying disaster survival training, LIG+AS makes critical safety knowledge engaging and memorable, moving beyond traditional pamphlets and lectures.
+                  By making disaster response rehearsal experiential rather than lecture-based, LIG+AS aims to help players translate what they know into timely, appropriate action when it matters most.
                 </p>
               </div>
             </div>
@@ -143,7 +132,7 @@ export default function Team() {
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-gray-100">
                   <span className="text-sm font-bold text-gray-500">Platform</span>
-                  <span className="text-sm font-black text-slate-800">Android (APK)</span>
+                  <span className="text-sm font-black text-slate-800">Android (APK) + Web Dashboard</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-gray-100">
                   <span className="text-sm font-bold text-gray-500">Game Engine</span>

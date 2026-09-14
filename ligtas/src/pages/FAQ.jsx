@@ -11,7 +11,7 @@ const faqData = [
     questions: [
       {
         q: "What is LIG+AS?",
-        a: "LIG+AS (Laro Interaktibo para sa Gabay at Ahensya ng Seguridad) is an interactive mobile game that simulates real-world disaster scenarios common in the Philippines. It's designed to teach survival skills through gamified, immersive experiences."
+        a: "LIG+AS (Learning in Gamified + Applied Simulation) is a dual-platform system — a mobile gamified simulation paired with a web-based analytics dashboard — that simulates real-world compound hazard scenarios common in the Philippines. It's designed to build procedural disaster preparedness through repeated, consequence-based, gamified rehearsal."
       },
       {
         q: "Who is LIG+AS for?",
@@ -53,7 +53,7 @@ const faqData = [
     questions: [
       {
         q: "What types of disasters are simulated?",
-        a: "LIG+AS simulates four major disaster types common in the Philippines: Fire (structural/urban), Flood (flash and rising water), Earthquake (seismic activity and structural collapse), and Typhoon (storm surge and strong winds)."
+        a: "LIG+AS simulates five compound hazard scenarios common in the Philippines: Earthquake (seismic activity and structural collapse), Typhoon (storm surge and strong winds), Landslide (slope failure and debris flow), Flood (flash and rising water), Fire (structural/urban), and Volcanic Eruption (ashfall and pyroclastic hazards)."
       },
       {
         q: "How many levels are there?",

@@ -2,10 +2,10 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
-import { 
-  Flame, Droplets, AlertTriangle, MapPin, 
-  Gamepad2, Shield, Target, Zap, 
-  ChevronRight, Globe, BookOpen, Heart 
+import {
+  Droplets, AlertTriangle, MapPin, Layers, Mountain,
+  Gamepad2, Shield, Target, Zap,
+  ChevronRight, Globe, BookOpen, Heart
 } from "lucide-react";
 import Landingpage from "../assets/LIGTAS Landing.png";
 import game from "../assets/game.png";
@@ -31,7 +31,10 @@ export default function About() {
             A Game Built to <span className="text-orange-500">Save Lives.</span>
           </h1>
           <p className="mt-6 text-base sm:text-xl lg:text-2xl text-gray-400 max-w-4xl mx-auto font-medium leading-relaxed">
-            LIG+AS is a localized low-poly disaster simulation game designed to train players in survival decision-making during emergencies common in the Philippines.
+            LIG+AS is a localized low-poly disaster simulation designed to build procedural preparedness for compound hazard scenarios common in the Philippines.
+          </p>
+          <p className="mt-4 text-xs sm:text-sm text-gray-500 max-w-2xl mx-auto uppercase tracking-widest font-bold">
+            Enhancing Disaster Preparedness through Gamified Simulations and Localized Scenarios
           </p>
         </div>
       </section>
@@ -45,9 +48,9 @@ export default function About() {
                 What is LIG<span className="text-orange-500">+</span>AS?
               </h2>
               <div className="space-y-4 text-gray-600 leading-relaxed text-sm sm:text-base lg:text-lg">
-                <p>LIG+AS (Laro Interaktibo para sa Gabay at Ahensya ng Seguridad) is an interactive mobile game that simulates real-world disaster scenarios found in the Philippine context. It uses a low-poly 3D art style to create immersive environments where players must make quick survival decisions.</p>
+                <p>LIG+AS (Learning in Gamified + Applied Simulation) is a dual-platform system pairing a mobile-based gamified simulation with a web-based analytics dashboard, built to strengthen procedural preparedness for compound hazard scenarios found in the Philippine context. It uses a low-poly 3D art style to create immersive, spatially realistic environments where players must make quick survival decisions.</p>
                 <p>The game takes players through progressively challenging stages, each representing a different disaster scenario. Players navigate through environments, identify hazards, locate safe zones, and practice proper emergency responses.</p>
-                <p>Unlike traditional classroom-based disaster education, LIG+AS creates muscle memory through repeated simulated experiences — helping players react instinctively when real emergencies occur.</p>
+                <p>Unlike awareness-only disaster education, LIG+AS relies on repeated, consequence-based rehearsal to close the gap between knowing what to do and actually doing it — helping players translate disaster knowledge into timely, appropriate action when real emergencies occur.</p>
               </div>
               <Link to="/how-to-play" className="inline-flex items-center gap-3 mt-8 font-black text-orange-500 hover:text-orange-600 transition-colors group text-sm sm:text-base lg:text-lg">
                 LEARN HOW TO PLAY <ChevronRight className="group-hover:translate-x-1 transition-transform" size={20} />
@@ -71,15 +74,16 @@ export default function About() {
           <div className="text-center mb-10 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black text-slate-900 tracking-tighter">Disaster Scenarios</h2>
             <p className="text-gray-500 mt-3 text-sm sm:text-lg lg:text-xl max-w-3xl mx-auto">
-              Each disaster type is modeled after real conditions in the Philippines, with accurate hazard behavior and proper survival protocols.
+              Six compound hazard scenarios, each modeled after real conditions in the Philippines, with accurate hazard behavior and proper survival protocols.
             </p>
           </div>
           <div className="grid md:grid-cols-2 gap-5 sm:gap-6 lg:gap-8">
             {[
-              { icon: <Flame size={28} />, title: "Fire", sub: "Structure & Urban Fire", desc: "Navigate through burning residential and commercial structures. Fire spreads dynamically based on materials and ventilation. Players learn crawl-under-smoke, exit identification, and fire extinguisher protocols.", tags: ["Smoke Navigation", "Exit Routes", "Stop-Drop-Roll"], color: "red" },
-              { icon: <Droplets size={28} />, title: "Flood", sub: "Flash & Rising Water", desc: "Escape rising floodwater in urban and suburban environments. Water levels increase in real-time. Players learn to identify high ground, avoid submerged hazards, and understand current dangers.", tags: ["Elevation Awareness", "Current Avoidance", "Signal for Help"], color: "blue" },
               { icon: <AlertTriangle size={28} />, title: "Earthquake", sub: "Seismic Activity & Structural Collapse", desc: "React to sudden seismic events in classrooms, offices, and outdoor areas. Structures crack and collapse dynamically. Players practice Drop-Cover-Hold and evacuation after tremors subside.", tags: ["Drop-Cover-Hold", "Aftershock Safety", "Open Area Evacuation"], color: "orange" },
               { icon: <MapPin size={28} />, title: "Typhoon", sub: "Storm Surge & Strong Winds", desc: "Prepare for and survive incoming typhoons. Secure loose objects, board windows, and evacuate to designated shelters before the storm intensifies.", tags: ["Preparation Phase", "Shelter-in-Place", "Evacuation Timing"], color: "teal" },
+              { icon: <Layers size={28} />, title: "Landslide", sub: "Slope Failure & Debris Flow", desc: "Navigate unstable slopes and debris-prone areas during and after heavy rainfall. Ground gives way dynamically as saturation increases. Players learn to recognize warning signs, move to stable ground, and avoid blocked evacuation routes.", tags: ["Warning Sign Recognition", "Stable Ground Movement", "Route Assessment"], color: "amber" },
+              { icon: <Droplets size={28} />, title: "Tsunami", sub: "Flash & Rising Water", desc: "Escape rising floodwater in urban and suburban environments. Water levels increase in real-time. Players learn to identify high ground, avoid submerged hazards, and understand current dangers.", tags: ["Elevation Awareness", "Current Avoidance", "Signal for Help"], color: "blue" },
+              { icon: <Mountain size={28} />, title: "Volcanic Eruption", sub: "Ashfall & Pyroclastic Hazards", desc: "Survive ashfall and evacuate danger zones during volcanic activity. Visibility and air quality degrade as ash accumulates. Players learn respiratory protection, evacuation timing, and safe distancing from active hazard zones.", tags: ["Ashfall Protection", "Evacuation Timing", "Hazard Zone Distancing"], color: "rose" },
             ].map((item, i) => (
               <div key={i} className="bg-white p-6 sm:p-8 lg:p-10 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-lg transition-all">
                 <div className="flex items-center gap-4 mb-5 sm:mb-6">
