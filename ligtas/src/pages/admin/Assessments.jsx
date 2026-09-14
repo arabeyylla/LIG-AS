@@ -3,6 +3,8 @@ import AdminLayout from '../../components/layout/AdminLayout';
 import AssessmentAnalytics from '../../components/admin/AssessmentAnalytics';
 import AssessmentDetailModal from '../../components/admin/AssessmentDetailModal';
 import { useAssessmentResults } from '../../hooks/useAssessmentResults';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useToast } from '../../hooks/useToast';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
 import { Search, Eye, Trash2, Loader2, ClipboardList } from 'lucide-react';
@@ -16,6 +18,8 @@ const MODULE_OPTIONS = ['all', 'Earthquake', 'Typhoon', 'Flood', 'General'];
 
 export default function Assessments() {
   const { rows, loading, error, removeLocal, refetch } = useAssessmentResults();
+  const { confirm, confirmDialog } = useConfirm();
+  const { showToast, toastElement } = useToast();
   const [typeFilter, setTypeFilter] = useState('all');
   const [moduleFilter, setModuleFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -42,7 +46,13 @@ export default function Assessments() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this assessment record? This cannot be undone.')) return;
+    const ok = await confirm({
+      title: 'Delete this record?',
+      message: 'This assessment result will be permanently removed. This cannot be undone.',
+      confirmLabel: 'Delete Record',
+    });
+    if (!ok) return;
+
     setDeletingId(id);
     try {
       // --- Supabase delete ---------------------------------------------------
@@ -52,9 +62,10 @@ export default function Assessments() {
       removeLocal(id);
       logSystemEvent('assessment_results.deleted', {}, 'assessment_results', id);
       if (selectedRow?.id === id) setSelectedRow(null);
+      showToast('Assessment record deleted.', 'success');
     } catch (err) {
       console.error('Failed to delete assessment record:', err.message);
-      alert('Failed to delete: ' + err.message);
+      showToast('Failed to delete: ' + err.message, 'error');
     } finally {
       setDeletingId(null);
     }
@@ -206,6 +217,9 @@ export default function Assessments() {
       {selectedRow && (
         <AssessmentDetailModal row={selectedRow} siblingRows={siblingsFor(selectedRow)} onClose={() => setSelectedRow(null)} />
       )}
+
+      {confirmDialog}
+      {toastElement}
     </AdminLayout>
   );
 }

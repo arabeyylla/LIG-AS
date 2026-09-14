@@ -2,9 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useToast } from '../../hooks/useToast';
 import { Image, Plus, Trash2, Loader2, Upload, X, ImagePlus, Eye } from 'lucide-react';
 
 export default function Gallery() {
+  const { confirm, confirmDialog } = useConfirm();
+  const { showToast, toastElement } = useToast();
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -37,8 +41,8 @@ export default function Gallery() {
   function handleFileSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { alert('Please select an image file.'); return; }
-    if (file.size > 5 * 1024 * 1024) { alert('File size must be less than 5MB.'); return; }
+    if (!file.type.startsWith('image/')) { showToast('Please select an image file.', 'error'); return; }
+    if (file.size > 5 * 1024 * 1024) { showToast('File size must be less than 5MB.', 'error'); return; }
     setSelectedFile(file);
     setPreview(URL.createObjectURL(file));
   }
@@ -77,16 +81,23 @@ export default function Gallery() {
       setShowUpload(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
       await fetchImages();
+      showToast('Image uploaded to the gallery.', 'success');
     } catch (err) {
       console.error('Upload failed:', err.message);
-      alert('Upload failed: ' + err.message);
+      showToast('Upload failed: ' + err.message, 'error');
     } finally {
       setUploading(false);
     }
   }
 
   async function handleDelete(image) {
-    if (!confirm(`Delete "${image.caption || image.file_name}"?`)) return;
+    const ok = await confirm({
+      title: 'Delete this photo?',
+      message: `"${image.caption || image.file_name}" will be permanently removed from the gallery. This cannot be undone.`,
+      confirmLabel: 'Delete Photo',
+    });
+    if (!ok) return;
+
     setDeletingId(image.id);
     try {
       // Delete from storage
@@ -98,9 +109,10 @@ export default function Gallery() {
       if (error) throw error;
       logSystemEvent('gallery.image_deleted', { fileName: image.file_name }, 'gallery', image.id);
       setImages(prev => prev.filter(i => i.id !== image.id));
+      showToast('Photo deleted.', 'success');
     } catch (err) {
       console.error('Delete failed:', err.message);
-      alert('Delete failed: ' + err.message);
+      showToast('Delete failed: ' + err.message, 'error');
     } finally {
       setDeletingId(null);
     }
@@ -198,6 +210,9 @@ export default function Gallery() {
 
         {!loading && images.length > 0 && <p className="text-center text-sm text-slate-400 mt-8">{images.length} image{images.length !== 1 ? 's' : ''} in gallery</p>}
       </div>
+
+      {confirmDialog}
+      {toastElement}
     </AdminLayout>
   );
 }

@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
+import { useConfirm } from '../../hooks/useConfirm';
+import { useToast } from '../../hooks/useToast';
 import { MessageSquare, Mail, Trash2, CheckCircle, Circle, Loader2, Inbox, User } from 'lucide-react';
 
 export default function Feedback() {
+  const { confirm, confirmDialog } = useConfirm();
+  const { showToast, toastElement } = useToast();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -51,16 +55,23 @@ export default function Feedback() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Delete this feedback message?')) return;
+    const ok = await confirm({
+      title: 'Delete this message?',
+      message: 'This feedback message will be permanently removed. This cannot be undone.',
+      confirmLabel: 'Delete Message',
+    });
+    if (!ok) return;
+
     setDeletingId(id);
     try {
       const { error } = await supabase.from('feedback').delete().eq('id', id);
       if (error) throw error;
       setMessages(prev => prev.filter(m => m.id !== id));
       logSystemEvent('feedback.deleted', {}, 'feedback', id);
+      showToast('Message deleted.', 'success');
     } catch (err) {
       console.error('Failed to delete feedback:', err.message);
-      alert('Failed to delete: ' + err.message);
+      showToast('Failed to delete: ' + err.message, 'error');
     } finally {
       setDeletingId(null);
     }
@@ -135,6 +146,9 @@ export default function Feedback() {
           )}
         </div>
       </div>
+
+      {confirmDialog}
+      {toastElement}
     </AdminLayout>
   );
 }

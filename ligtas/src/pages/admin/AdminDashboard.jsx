@@ -25,8 +25,10 @@ export default function AdminDashboard() {
 
       let pageVisits = 0;
       try {
-        const { data } = await supabase.from('page_visits').select('count');
-        if (data) pageVisits = data.reduce((sum, r) => sum + (r.count || 0), 0);
+        // `page_visits` is an event log (one row per view), so an exact row
+        // count IS the total — see 20260917_page_visits_event_log.sql.
+        const { count } = await supabase.from('page_visits').select('*', { count: 'exact', head: true });
+        pageVisits = count || 0;
       } catch (e) {}
 
       let feedbackCount = 0;

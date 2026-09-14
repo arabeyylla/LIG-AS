@@ -4,7 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { BarChart3, Download, Eye, TrendingUp, Loader2, Globe, Clock } from 'lucide-react';
 
 export default function Analytics() {
-  const [pageVisits, setPageVisits] = useState([]);
+  const [pageVisits, setPageVisits] = useState([]); // [{ page_name, count }], grouped client-side
+  const [totalVisits, setTotalVisits] = useState(0);
   const [downloads, setDownloads] = useState({ total: 0, last_download: null });
   const [loading, setLoading] = useState(true);
 
@@ -26,13 +27,24 @@ export default function Analytics() {
     try {
       setLoading(true);
 
-      // Fetch page visits. Sorted client-side rather than via `.order('count', ...)`
-      // so this doesn't 400 if the `count` column/migration isn't live yet on
-      // this Supabase project — it just falls back to `0` per row instead.
-      const { data: visitsData } = await supabase
+      // Total Page Visits: `page_visits` is an event log (one row per view —
+      // see 20260917_page_visits_event_log.sql), so an exact row count over
+      // the whole table IS the total. `head: true` skips returning the rows
+      // themselves since only the count is needed here.
+      const { count: totalCount } = await supabase
         .from('page_visits')
-        .select('*');
-      setPageVisits((visitsData || []).slice().sort((a, b) => (b.count || 0) - (a.count || 0)));
+        .select('*', { count: 'exact', head: true });
+      setTotalVisits(totalCount || 0);
+
+      // Per-page breakdown: the Supabase query builder has no GROUP BY, so
+      // fetch each visit's page_name and tally per page client-side.
+      const { data: visitRows } = await supabase.from('page_visits').select('page_name');
+      const grouped = {};
+      (visitRows || []).forEach((r) => { grouped[r.page_name] = (grouped[r.page_name] || 0) + 1; });
+      const breakdown = Object.entries(grouped)
+        .map(([page_name, count]) => ({ page_name, count }))
+        .sort((a, b) => b.count - a.count);
+      setPageVisits(breakdown);
 
       // Fetch downloads. `.maybeSingle()` (not `.single()`) so a fresh
       // `downloads` table with zero rows returns null instead of a 406.
@@ -48,7 +60,6 @@ export default function Analytics() {
     }
   }
 
-  const totalVisits = pageVisits.reduce((sum, p) => sum + (p.count || 0), 0);
   const maxVisits = pageVisits.length > 0 ? pageVisits[0].count : 1;
 
   const pageLabels = { home: 'Home', about: 'About', 'how-to-play': 'How to Play', team: 'Team', faq: 'FAQ', download: 'Download' };

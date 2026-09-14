@@ -2,12 +2,16 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
-import { 
-  Megaphone, Plus, Edit3, Trash2, X, 
-  Send, Loader2, Clock, Tag 
+import { useConfirm } from '../../hooks/useConfirm';
+import { useToast } from '../../hooks/useToast';
+import {
+  Megaphone, Plus, Edit3, Trash2, X,
+  Send, Loader2, Clock, Tag
 } from 'lucide-react';
 
 export default function Announcements() {
+  const { confirm, confirmDialog } = useConfirm();
+  const { showToast, toastElement } = useToast();
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -66,29 +70,38 @@ export default function Announcements() {
         logSystemEvent('announcement.created', { title: formData.title.trim() }, 'announcement');
       }
 
+      const wasEditing = Boolean(editingId);
       setFormData({ title: '', body: '', category: 'System' });
       setShowForm(false);
       setEditingId(null);
       await fetchAnnouncements();
+      showToast(wasEditing ? 'Announcement updated.' : 'Announcement published.', 'success');
     } catch (err) {
       console.error('Failed to save announcement:', err.message);
-      alert('Failed to save: ' + err.message);
+      showToast('Failed to save: ' + err.message, 'error');
     } finally {
       setSubmitting(false);
     }
   }
 
   async function handleDelete(id) {
-    if (!confirm('Are you sure you want to delete this announcement?')) return;
+    const ok = await confirm({
+      title: 'Delete this announcement?',
+      message: 'It will be removed from the public site immediately. This cannot be undone.',
+      confirmLabel: 'Delete Announcement',
+    });
+    if (!ok) return;
+
     setDeletingId(id);
     try {
       const { error } = await supabase.from('announcements').delete().eq('id', id);
       if (error) throw error;
       logSystemEvent('announcement.deleted', {}, 'announcement', id);
       await fetchAnnouncements();
+      showToast('Announcement deleted.', 'success');
     } catch (err) {
       console.error('Failed to delete:', err.message);
-      alert('Failed to delete: ' + err.message);
+      showToast('Failed to delete: ' + err.message, 'error');
     } finally {
       setDeletingId(null);
     }
@@ -202,6 +215,9 @@ export default function Announcements() {
           )}
         </div>
       </div>
+
+      {confirmDialog}
+      {toastElement}
     </AdminLayout>
   );
 }

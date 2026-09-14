@@ -4,38 +4,17 @@ import { supabase } from './supabase';
 import { logSystemEvent } from './systemLogs';
 
 /**
- * Track a page visit by upserting the counter for that page.
- * Uses Supabase RPC function: increment_page_visit(page TEXT)
- * Fallback: direct upsert to page_visits table
+ * Track a page visit by inserting one event row into `page_visits`.
+ * `page_visits` is an event log (one row per view), not a per-page counter —
+ * see supabase/migrations/20260917_page_visits_event_log.sql — so this is a
+ * plain insert with no RPC/upsert dance needed; the admin panel counts rows
+ * (optionally grouped by page_name) to get totals and per-page breakdowns.
  */
 export async function trackPageVisit(pageName) {
   if (!supabase) return;
   try {
-    // Try RPC first (most efficient)
-    const { error } = await supabase.rpc('increment_page_visit', { page: pageName });
-    if (error) {
-      // Fallback: try direct upsert. `.maybeSingle()` (not `.single()`) so a
-      // page visited for the first time (no existing row) returns null
-      // instead of throwing a 406.
-      const { data: existing } = await supabase
-        .from('page_visits')
-        .select('count')
-        .eq('page_name', pageName)
-        .maybeSingle();
-
-      if (existing) {
-        const { error: updateError } = await supabase
-          .from('page_visits')
-          .update({ count: existing.count + 1 })
-          .eq('page_name', pageName);
-        if (updateError) throw updateError;
-      } else {
-        const { error: insertError } = await supabase
-          .from('page_visits')
-          .insert({ page_name: pageName, count: 1 });
-        if (insertError) throw insertError;
-      }
-    }
+    const { error } = await supabase.from('page_visits').insert({ page_name: pageName });
+    if (error) throw error;
   } catch (err) {
     console.error('Failed to track page visit:', err.message);
   }
