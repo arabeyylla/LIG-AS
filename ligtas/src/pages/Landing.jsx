@@ -9,19 +9,39 @@ import { Link } from 'react-router-dom';
 import { Gamepad2, Users, Trophy, ChevronRight, AlertTriangle, ChevronLeft, Shield, MapPin, Flame, Droplets, Layers, Mountain } from "lucide-react";
 import { supabase } from '../lib/supabase';
 import { trackPageVisit } from '../lib/analytics';
+import { useSiteSetting } from '../hooks/useSiteSetting';
 
 export default function Landing() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [latestAnnouncement, setLatestAnnouncement] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
   const [announcementLoading, setAnnouncementLoading] = useState(() => Boolean(supabase));
   const [galleryImages, setGalleryImages] = useState(null);
+
+  // Admin-configured "how many to show" (Announcements/Gallery admin tabs).
+  // Sliced in from the full fetched list at render time (not baked into the
+  // fetch), so a changed setting takes effect without needing a re-fetch.
+  const { value: announcementsDisplayCount } = useSiteSetting('announcements_display_count', 5);
+  const { value: galleryDisplayCount } = useSiteSetting('gallery_display_count', 6);
 
   const defaultImages = [
     { url: Landingpage, title: "RPG Exploration" },
     { url: game, title: "Survival Mechanics" },
     { url: failed, title: "Crisis Management" }
   ];
-  const gameImages = galleryImages && galleryImages.length > 0 ? galleryImages : defaultImages;
+  const gameImages = galleryImages && galleryImages.length > 0
+    ? galleryImages.slice(0, Math.max(galleryDisplayCount, 1))
+    : defaultImages;
+
+  // Pinned announcements always show (the "static" ones), on top of the
+  // latest non-pinned announcements filling the configured display count —
+  // so the display-count setting controls how many "latest" rotate, while
+  // pinned ones are never bumped out. `?? false` treats a missing
+  // `is_pinned` (column not migrated yet) the same as "not pinned".
+  const pinnedAnnouncements = announcements.filter((a) => a.is_pinned ?? false);
+  const latestAnnouncements = announcements
+    .filter((a) => !(a.is_pinned ?? false))
+    .slice(0, Math.max(announcementsDisplayCount, 1));
+  const visibleAnnouncements = [...pinnedAnnouncements, ...latestAnnouncements];
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % gameImages.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? gameImages.length - 1 : prev - 1));
@@ -34,13 +54,17 @@ export default function Landing() {
     const fetchGallery = async () => {
       const { data, error } = await supabase
         .from('gallery')
-        .select('image_url, caption')
+        .select('image_url, caption, is_active')
         .order('created_at', { ascending: false });
       if (error) {
         console.error('Failed to load gallery:', error.message);
         return;
       }
-      setGalleryImages((data || []).map((image) => ({ url: image.image_url, title: image.caption || 'LIG+AS' })));
+      // `is_active` may not exist yet if the visibility migration hasn't
+      // been applied — `?? true` treats a missing/undefined value the same
+      // as "active", so this never hides images on an un-migrated project.
+      const active = (data || []).filter((image) => image.is_active ?? true);
+      setGalleryImages(active.map((image) => ({ url: image.image_url, title: image.caption || 'LIG+AS' })));
     };
 
     fetchGallery();
@@ -54,22 +78,32 @@ export default function Landing() {
   useEffect(() => {
     if (!supabase) return;
 
-    const fetchLatestAnnouncement = async () => {
+    const fetchAnnouncements = async () => {
+      // Fetches a generously-capped batch (not just the single latest one)
+      // so the "Display Count" admin setting can show a real list — the
+      // exact count shown is sliced from this at render time.
       const { data, error } = await supabase
         .from('announcements')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      if (!error || error.code === 'PGRST116') setLatestAnnouncement(data || null);
-      else console.error('Failed to load announcement:', error.message);
+        .limit(20);
+      if (error) {
+        console.error('Failed to load announcements:', error.message);
+        setAnnouncementLoading(false);
+        return;
+      }
+      // `is_active` may not exist yet if the visibility migration hasn't
+      // been applied — `?? true` treats a missing/undefined value the same
+      // as "active", so this never hides announcements on an un-migrated
+      // project.
+      setAnnouncements((data || []).filter((a) => a.is_active ?? true));
       setAnnouncementLoading(false);
     };
 
-    fetchLatestAnnouncement();
+    fetchAnnouncements();
     const channel = supabase
       .channel('public-announcements')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, fetchLatestAnnouncement)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'announcements' }, fetchAnnouncements)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -210,28 +244,32 @@ export default function Landing() {
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Announcements & Updates</h2>
             <p className="text-gray-500 mt-2 text-sm sm:text-base lg:text-lg">Latest news from the LIG+AS team</p>
           </div>
-          <div className="grid md:grid-cols-3 gap-5 sm:gap-8">
-            <div className="bg-white p-6 sm:p-8 lg:p-10 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between md:col-span-2">
-              <div>
-                <div className="text-sm lg:text-base text-gray-400 mb-4">
-                  {(latestAnnouncement?.category || 'System') + ' \u2022 ' + (latestAnnouncement?.created_at ? new Date(latestAnnouncement.created_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' }) : '\u2014')}
+          {announcementLoading ? (
+            <div className="bg-white p-8 sm:p-10 rounded-xl shadow-sm border border-gray-100 text-gray-400 font-medium">Loading...</div>
+          ) : visibleAnnouncements.length === 0 ? (
+            <div className="bg-white p-8 sm:p-10 rounded-xl shadow-sm border border-gray-100 text-center">
+              <p className="text-gray-500 text-sm sm:text-base lg:text-lg">Check back later for the latest news and updates from the LIG+AS team.</p>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-8">
+              {visibleAnnouncements.map((item) => (
+                <div key={item.id} className="bg-white p-6 sm:p-8 lg:p-10 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
+                  <div>
+                    <div className="text-sm lg:text-base text-gray-400 mb-4">
+                      {(item.category || 'System') + ' \u2022 ' + new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
+                    </div>
+                    <h4 className="text-lg sm:text-xl lg:text-2xl font-bold mb-3">{item.title}</h4>
+                    <p className="text-gray-600 text-sm sm:text-base lg:text-lg leading-relaxed mb-6 whitespace-pre-line line-clamp-4">{item.body}</p>
+                  </div>
+                  {item.is_pinned ? (
+                    <span className="bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">Pinned</span>
+                  ) : item.id === latestAnnouncements[0]?.id ? (
+                    <span className="bg-teal-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">Latest</span>
+                  ) : null}
                 </div>
-                <h4 className="text-lg sm:text-xl lg:text-2xl font-bold mb-3">{latestAnnouncement?.title || 'No announcements yet'}</h4>
-                <p className="text-gray-600 text-sm sm:text-base lg:text-lg leading-relaxed mb-6 whitespace-pre-line">
-                  {announcementLoading ? 'Loading...' : latestAnnouncement?.body || 'Check back later for the latest news and updates from the LIG+AS team.'}
-                </p>
-              </div>
-              {latestAnnouncement && <span className="bg-teal-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">Latest</span>}
+              ))}
             </div>
-            <div className="bg-white p-6 sm:p-8 lg:p-10 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between">
-              <div>
-                <div className="text-sm text-gray-400 mb-4">Info \u2022 Always On</div>
-                <h4 className="text-lg sm:text-xl lg:text-2xl font-bold mb-3">Stay Updated</h4>
-                <p className="text-gray-600 text-sm sm:text-base lg:text-lg leading-relaxed mb-6">Game updates, patch notes, and important advisories are posted here by the LIG+AS admin team.</p>
-              </div>
-              <span className="bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">Info</span>
-            </div>
-          </div>
+          )}
         </div>
       </section>
 

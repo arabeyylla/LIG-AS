@@ -4,7 +4,10 @@ import Footer from '../components/layout/Footer';
 import { supabase } from '../lib/supabase';
 import { logSystemEvent } from '../lib/systemLogs';
 import { trackPageVisit } from '../lib/analytics';
+import { DISASTER_MODULES, buildSessionQuestions, pickSessionQuestions, fetchQuestionPool, DEFAULT_MODULE_QUOTAS } from '../lib/assessmentQuestionBank';
+import { useSiteSetting } from '../hooks/useSiteSetting';
 import Toast from '../components/Toast';
+import AssessmentGuidanceModal from '../components/AssessmentGuidanceModal';
 import {
   ClipboardCheck,
   CheckCircle2,
@@ -14,190 +17,6 @@ import {
   ArrowRight,
   BarChart3,
 } from 'lucide-react';
-
-// ---------------------------------------------------------------------------
-// Question bank — PARALLEL FORMS design.
-// Pre- and Post-Assessment intentionally use DIFFERENT scenarios per module
-// (not the same questions reworded) so a post-test score reflects retained
-// understanding rather than memorization of the pre-test. Both sets still
-// cover the same 4 modules with the SAME number of questions per module
-// (Earthquake x2, Typhoon x2, Flood x1, General x1), which is what keeps
-// the admin analytics' Pre-vs-Post and per-module comparisons meaningful.
-//
-// Distractors are written to be plausible rather than obviously wrong
-// (common myths, half-right actions, tempting-but-risky shortcuts) so the
-// questions test reasoning, not just elimination.
-//
-// `category` is the display label on the question card; `module` is the
-// normalized disaster_module value written to Supabase — see handleSubmit,
-// which groups questions by `module` into separate rows. `correctIndex` is
-// the zero-based index of the correct option.
-// ---------------------------------------------------------------------------
-const PRE_QUESTIONS = [
-  {
-    id: 'pre-eq1',
-    category: 'Earthquake',
-    module: 'Earthquake',
-    question: 'You are inside a classroom on the 3rd floor when strong shaking begins. What is the safest immediate action?',
-    options: [
-      'Immediately run for the stairwell to exit the building',
-      'Drop to the ground, take cover under a sturdy desk, and hold on until the shaking stops',
-      'Move to a doorway and brace yourself against the frame',
-      'Stand against an interior wall away from windows',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-eq2',
-    category: 'Earthquake',
-    module: 'Earthquake',
-    question: 'Immediately after strong shaking stops in a multi-story building, what should occupants do first, before evacuating?',
-    options: [
-      'Take the elevator down quickly in case of aftershocks',
-      'Gather personal belongings from their desks before leaving',
-      'Check themselves and others for injuries, then check for hazards like broken glass or gas odors',
-      'Wait for an "all clear" announcement over the intercom before doing anything',
-    ],
-    correctIndex: 2,
-  },
-  {
-    id: 'pre-ty1',
-    category: 'Typhoon',
-    module: 'Typhoon',
-    question: 'A typhoon warning has just been raised for your area, and the storm is still 24 hours away. What should you prioritize now?',
-    options: [
-      'Wait until the rain starts before deciding whether to prepare',
-      'Charge devices, secure loose outdoor items, and stock up on water and non-perishable food',
-      'Board up all windows and evacuate immediately, regardless of your area’s risk level',
-      'Turn off the main water supply to prevent flooding inside the house',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-ty2',
-    category: 'Typhoon',
-    module: 'Typhoon',
-    question: 'During the height of a typhoon, the wind suddenly calms and the sky clears. What does this most likely mean?',
-    options: [
-      'The typhoon has passed and it is now safe to go outside',
-      'You are in the eye of the storm — violent winds will resume, likely from the opposite direction',
-      'The storm has weakened into a tropical depression',
-      'It is safe to check for damage around your property',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-fl1',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'Floodwater has risen ankle-deep on the street outside your home, and your car is parked there. What is the safest choice?',
-    options: [
-      'Quickly drive the car to higher ground before the water rises further',
-      'Leave the car — moving water as shallow as six inches can sweep it off the road or stall the engine',
-      'Push the car manually into a garage to protect it',
-      'Wait inside the car until the water recedes',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-gen1',
-    category: 'General Preparedness',
-    module: 'General',
-    question: 'You’re assembling a family emergency ("go") bag for the first 72 hours. Which item is LEAST essential to prioritize?',
-    options: [
-      'A three-day supply of water and non-perishable food',
-      'Copies of important documents in a waterproof pouch',
-      'A portable gaming console for entertainment',
-      'A battery-powered or hand-crank radio',
-    ],
-    correctIndex: 2,
-  },
-];
-
-const POST_QUESTIONS = [
-  {
-    id: 'post-eq1',
-    category: 'Earthquake',
-    module: 'Earthquake',
-    question: 'While driving during an earthquake, what is the correct response?',
-    options: [
-      'Speed up to reach a safe location as quickly as possible',
-      'Slow down and pull over away from buildings, bridges, and overpasses, then stay inside until shaking stops',
-      'Stop immediately wherever you are, even if that is under an overpass',
-      'Get out of the car and lie flat on the road',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'post-eq2',
-    category: 'Earthquake',
-    module: 'Earthquake',
-    question: 'Several days after a major earthquake, smaller aftershocks are still occurring. What should residents of a visibly cracked building do?',
-    options: [
-      'Ignore the aftershocks since the main earthquake already happened',
-      'Move back in as soon as the shaking feels weaker than the main quake',
-      'Avoid re-entering until officials have inspected and cleared the structure, since aftershocks can cause further collapse',
-      'Only avoid the building if it has already collapsed',
-    ],
-    correctIndex: 2,
-  },
-  {
-    id: 'post-ty1',
-    category: 'Typhoon',
-    module: 'Typhoon',
-    question: 'Local officials issue a mandatory evacuation order for your area as a typhoon approaches. What should you do?',
-    options: [
-      'Stay home since your house has survived previous typhoons without damage',
-      'Evacuate to the designated evacuation center as instructed, even if the weather still looks calm',
-      'Wait until conditions visibly worsen before deciding',
-      'Evacuate only if you personally judge the storm to be dangerous enough',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'post-ty2',
-    category: 'Typhoon',
-    module: 'Typhoon',
-    question: 'After a typhoon passes, you see a downed power line near your street. What is the correct action?',
-    options: [
-      'Move it carefully to the side of the road so vehicles can pass',
-      'Assume it may still be live, stay away, and report it to the authorities immediately',
-      'It’s safe to touch as long as it looks undamaged',
-      'Only avoid it if it is visibly sparking',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'post-fl1',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'You need to evacuate on foot and the only route crosses moving floodwater that looks shallow. What is the safest approach?',
-    options: [
-      'Walk quickly through the fastest-looking path to minimize exposure time',
-      'Avoid the water if at all possible; if you must cross, use a stick to check depth and never cross water above your knees',
-      'It’s safe to wade through as long as it doesn’t reach your waist',
-      'Hold hands with others in a line and walk through together for stability',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'post-gen1',
-    category: 'General Preparedness',
-    module: 'General',
-    question: 'Based on what you practiced in LIG+AS, which best describes an effective household disaster plan?',
-    options: [
-      'A plan that only covers what to do during the disaster itself',
-      'A plan covering prevention, response during the event, AND recovery afterward, practiced regularly by the whole household',
-      'A plan that is created once and never needs to be updated',
-      'A plan that only one family member needs to know in detail',
-    ],
-    correctIndex: 1,
-  },
-];
-
-const QUESTION_SETS = { pre: PRE_QUESTIONS, post: POST_QUESTIONS };
-
-const DISASTER_MODULES = ['Earthquake', 'Typhoon', 'Flood', 'General'];
 
 const CONFIDENCE_QUESTION =
   'On a scale of 1 to 5, how confident are you in your ability to respond to a disaster (earthquake, typhoon, or flood)?';
@@ -218,14 +37,15 @@ const TABS = [
 
 // ---------------------------------------------------------------------------
 // Local (per-browser) results cache.
-// RLS on `assessments` only grants admins SELECT access (see the SQL
-// migration), so this page cannot query past submissions back from
+// RLS on `assessment_results` only grants admins SELECT access (see the SQL
+// migrations), so this page cannot query past submissions back from
 // Supabase for an anonymous player. Instead, each successful submission is
 // mirrored into sessionStorage so the "Results" tab can show a same-device
 // Pre vs. Post comparison right after someone plays. Aggregate results
 // across all participants belong on an authenticated admin page.
 // ---------------------------------------------------------------------------
 const STORAGE_KEY = 'ligtas_assessment_results';
+const CONSENT_STORAGE_KEY = 'ligtas_assessment_consent';
 
 function loadLocalResults() {
   try {
@@ -250,6 +70,14 @@ function saveLocalResult(participantId, payload) {
   }
 }
 
+function loadStoredConsent() {
+  try {
+    return sessionStorage.getItem(CONSENT_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
 function percentOf(score, total) {
   if (!total) return 0;
   return Math.round((score / total) * 100);
@@ -267,6 +95,7 @@ function getFeedback(percent) {
 
 export default function Assessment() {
   const [mode, setMode] = useState('pre'); // 'pre' | 'post' | 'results'
+  const [sessionQuestions, setSessionQuestions] = useState([]); // randomized per attempt — see buildSessionQuestions
   const [participantId, setParticipantId] = useState('');
   const [answers, setAnswers] = useState({}); // { [questionId]: optionIndex }
   const [confidence, setConfidence] = useState(0);
@@ -276,43 +105,99 @@ export default function Assessment() {
   const [localResults, setLocalResults] = useState(() => loadLocalResults());
   const [toast, setToast] = useState(null); // { type: 'success' | 'error', message }
 
+  // Guidance/consent modal gate. Starts open for 'pre' so a first-time
+  // visitor sees the notice + consent before the form is usable at all.
+  const [pendingGuidance, setPendingGuidance] = useState('pre');
+  const [consentGiven, setConsentGiven] = useState(() => loadStoredConsent());
+
+  // Admin-managed question pools (src/pages/admin/Assessments.jsx > Question
+  // Bank). Fetched once on mount; empty until it resolves, in which case
+  // confirmGuidance below falls back to the built-in static bank — so the
+  // page is usable immediately and never blocked on this fetch.
+  const [dbPools, setDbPools] = useState({ pre: [], post: [] });
+  const { value: quotas } = useSiteSetting('assessment_module_quotas', DEFAULT_MODULE_QUOTAS);
+
   useEffect(() => {
     trackPageVisit('assessment');
     const cached = loadLocalResults();
     if (cached.participantId) setParticipantId(cached.participantId);
   }, []);
 
-  // 'results' mode doesn't render a question form, so falling back to
-  // PRE_QUESTIONS there is inert — only 'pre' and 'post' actually use this.
-  const activeQuestions = QUESTION_SETS[mode] || PRE_QUESTIONS;
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([fetchQuestionPool('pre'), fetchQuestionPool('post')]).then(([pre, post]) => {
+      if (!cancelled) setDbPools({ pre, post });
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    try { sessionStorage.setItem(CONSENT_STORAGE_KEY, String(consentGiven)); } catch { /* ignore */ }
+  }, [consentGiven]);
 
   const answeredCount = Object.keys(answers).length;
-  const allAnswered = answeredCount === activeQuestions.length;
+  const allAnswered = sessionQuestions.length > 0 && answeredCount === sessionQuestions.length;
 
   function handleModeChange(nextMode) {
-    if (nextMode === mode) return;
+    if (nextMode === 'results') {
+      setMode('results');
+      return;
+    }
+    // Re-opens the guidance modal even for the currently active tab IF that
+    // attempt hasn't actually started yet (sessionQuestions still empty —
+    // e.g. the player cancelled the modal last time). Otherwise clicking
+    // the active tab again is a no-op so mid-attempt progress isn't lost.
+    if (nextMode === mode && sessionQuestions.length > 0) return;
+    setPendingGuidance(nextMode);
+  }
+
+  function confirmGuidance() {
+    const nextMode = pendingGuidance;
+    if (!nextMode) return;
     setMode(nextMode);
     setResult(null);
     setAnswers({});
     setConfidence(0);
     setError(null);
+    // Prefer the admin-managed DB pool when it has content; otherwise fall
+    // back to the built-in static bank (see dbPools fetch effect above).
+    const pool = dbPools[nextMode];
+    const nextQuestions = pool && pool.length > 0
+      ? pickSessionQuestions(pool, quotas)
+      : buildSessionQuestions(nextMode, quotas);
+    setSessionQuestions(nextQuestions);
+    setPendingGuidance(null);
+  }
+
+  function cancelGuidance() {
+    setPendingGuidance(null);
+  }
+
+  function handleRetake() {
+    setResult(null);
+    setAnswers({});
+    setConfidence(0);
+    setError(null);
+    setSessionQuestions([]);
+    setPendingGuidance(mode); // fresh random 10 once they confirm again
   }
 
   function selectAnswer(questionId, optionIndex) {
     setAnswers((prev) => ({ ...prev, [questionId]: optionIndex }));
   }
 
-  function resetForm() {
-    setResult(null);
-    setAnswers({});
-    setConfidence(0);
-    setError(null);
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     if (!participantId.trim()) {
       setError('Please enter your Student ID, email, or full name.');
+      return;
+    }
+    if (!consentGiven) {
+      setError('Please agree to the data privacy notice before submitting.');
+      return;
+    }
+    if (sessionQuestions.length === 0) {
+      setError('Your assessment questions are still loading. Please try again in a moment.');
       return;
     }
     if (!allAnswered) {
@@ -333,18 +218,20 @@ export default function Assessment() {
 
     const trimmedId = participantId.trim();
     const assessmentType = mode === 'pre' ? 'pre-assessment' : 'post-assessment';
-    const overallScore = activeQuestions.reduce((sum, q) => sum + (answers[q.id] === q.correctIndex ? 1 : 0), 0);
+    const overallScore = sessionQuestions.reduce((sum, q) => sum + (answers[q.id] === q.correctIndex ? 1 : 0), 0);
 
     try {
       // --- Supabase insert ---------------------------------------------------
-      // One row per disaster module (not one row for the whole assessment):
-      // this is what makes `disaster_module` a queryable column for the admin
-      // panel's per-module pass-rate breakdown, instead of a value baked into
-      // JSONB. All rows from this submit share identifier/assessment_type and
-      // an identical `created_at` (Postgres evaluates now() once per
+      // One row per disaster module present in this session's random draw
+      // (not one row for the whole assessment): this is what makes
+      // `disaster_module` a queryable column for the admin panel's
+      // per-module pass-rate breakdown, instead of a value baked into
+      // JSONB. All rows from this submit share identifier/assessment_type
+      // and an identical `created_at` (Postgres evaluates now() once per
       // statement), so the admin UI can regroup them into one "attempt".
       const rows = DISASTER_MODULES.map((moduleName) => {
-        const moduleQuestions = activeQuestions.filter((q) => q.module === moduleName);
+        const moduleQuestions = sessionQuestions.filter((q) => q.module === moduleName);
+        if (moduleQuestions.length === 0) return null;
         const moduleScore = moduleQuestions.reduce((sum, q) => sum + (answers[q.id] === q.correctIndex ? 1 : 0), 0);
         const answersPayload = moduleQuestions.map((q) => ({
           questionId: q.id,
@@ -363,18 +250,18 @@ export default function Assessment() {
           answers_payload: answersPayload,
           likert_preparedness_rating: confidence,
         };
-      });
+      }).filter(Boolean);
 
       const { error: insertError } = await supabase.from('assessment_results').insert(rows);
       if (insertError) throw insertError;
       // ------------------------------------------------------------------------
 
-      logSystemEvent('assessment.submitted', { type: assessmentType, score: overallScore, total: activeQuestions.length }, 'assessment_results', trimmedId);
+      logSystemEvent('assessment.submitted', { type: assessmentType, score: overallScore, total: sessionQuestions.length }, 'assessment_results', trimmedId);
 
       const payload = {
         type: mode,
         score: overallScore,
-        total: activeQuestions.length,
+        total: sessionQuestions.length,
         confidence,
         submittedAt: new Date().toISOString(),
       };
@@ -443,7 +330,7 @@ export default function Assessment() {
             <ThankYouView
               result={result}
               localResults={localResults}
-              onRetake={resetForm}
+              onRetake={handleRetake}
               onGoToPost={() => handleModeChange('post')}
               onGoToResults={() => handleModeChange('results')}
             />
@@ -477,23 +364,23 @@ export default function Assessment() {
               {/* Progress */}
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                  {answeredCount} of {activeQuestions.length} answered
+                  {answeredCount} of {sessionQuestions.length} answered
                 </span>
                 <div className="w-32 sm:w-48 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-orange-500 transition-all duration-300"
-                    style={{ width: `${(answeredCount / activeQuestions.length) * 100}%` }}
+                    style={{ width: sessionQuestions.length ? `${(answeredCount / sessionQuestions.length) * 100}%` : '0%' }}
                   />
                 </div>
               </div>
 
               {/* MCQ cards */}
-              {activeQuestions.map((q, idx) => (
+              {sessionQuestions.map((q, idx) => (
                 <div key={q.id} className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-xs font-black text-orange-500 uppercase tracking-widest">{q.category}</span>
                     <span className="text-xs font-bold text-gray-300">
-                      Question {idx + 1} of {activeQuestions.length}
+                      Question {idx + 1} of {sessionQuestions.length}
                     </span>
                   </div>
                   <h3 className="text-base sm:text-lg font-black text-slate-800 mb-5">{q.question}</h3>
@@ -570,6 +457,16 @@ export default function Assessment() {
       </section>
 
       <Footer />
+
+      {pendingGuidance && (
+        <AssessmentGuidanceModal
+          type={pendingGuidance}
+          consentGiven={consentGiven}
+          onConsentChange={setConsentGiven}
+          onConfirm={confirmGuidance}
+          onCancel={cancelGuidance}
+        />
+      )}
 
       {toast && <Toast type={toast.type} message={toast.message} onClose={() => setToast(null)} />}
     </div>

@@ -2,12 +2,13 @@ import { useState, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import AssessmentAnalytics from '../../components/admin/AssessmentAnalytics';
 import AssessmentDetailModal from '../../components/admin/AssessmentDetailModal';
+import AssessmentQuestionManager from '../../components/admin/AssessmentQuestionManager';
 import { useAssessmentResults } from '../../hooks/useAssessmentResults';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToast } from '../../hooks/useToast';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
-import { Search, Eye, Trash2, Loader2, ClipboardList } from 'lucide-react';
+import { Search, Eye, Trash2, Loader2, ClipboardList, HelpCircle } from 'lucide-react';
 
 const TYPE_OPTIONS = [
   { value: 'all', label: 'All Types' },
@@ -15,11 +16,16 @@ const TYPE_OPTIONS = [
   { value: 'post-assessment', label: 'Post-Assessment' },
 ];
 const MODULE_OPTIONS = ['all', 'Earthquake', 'Typhoon', 'Flood', 'General'];
+const ADMIN_TABS = [
+  { key: 'results', label: 'Results', icon: ClipboardList },
+  { key: 'questions', label: 'Question Bank', icon: HelpCircle },
+];
 
 export default function Assessments() {
   const { rows, loading, error, removeLocal, refetch } = useAssessmentResults();
   const { confirm, confirmDialog } = useConfirm();
   const { showToast, toastElement } = useToast();
+  const [adminTab, setAdminTab] = useState('results');
   const [typeFilter, setTypeFilter] = useState('all');
   const [moduleFilter, setModuleFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -79,11 +85,31 @@ export default function Assessments() {
   return (
     <AdminLayout>
       <div className="w-full">
-        <div className="mb-10">
+        <div className="mb-6">
           <h1 className="text-3xl lg:text-4xl xl:text-5xl font-black text-slate-800 tracking-tighter">Assessment Results</h1>
           <p className="text-slate-400 font-bold mt-2">Pre- and Post-Assessment knowledge checks submitted from the public Assessment page.</p>
         </div>
 
+        <div className="mb-8">
+          <div className="inline-flex bg-slate-100 p-1.5 rounded-xl gap-1">
+            {ADMIN_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setAdminTab(tab.key)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                  adminTab === tab.key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                <tab.icon size={14} /> {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {adminTab === 'questions' ? (
+          <AssessmentQuestionManager />
+        ) : (
+          <>
         {error && (
           <div className="mb-6 p-5 rounded-2xl border border-red-100 bg-red-50 text-red-700">
             <p className="font-black">Assessment data could not be loaded.</p>
@@ -211,6 +237,8 @@ export default function Assessments() {
 
         {!loading && filteredRows.length > 0 && (
           <p className="text-center text-sm text-slate-400 mt-6">{filteredRows.length} record{filteredRows.length !== 1 ? 's' : ''}</p>
+        )}
+          </>
         )}
       </div>
 

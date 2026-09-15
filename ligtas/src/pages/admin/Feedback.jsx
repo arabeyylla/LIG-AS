@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import AdminFilterBar from '../../components/admin/AdminFilterBar';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
 import { useConfirm } from '../../hooks/useConfirm';
@@ -13,6 +14,13 @@ export default function Feedback() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [deletingId, setDeletingId] = useState(null);
+
+  // Unified filter bar state (date range + limit). Visibility is already
+  // covered by the existing all/unread/read tabs above, so AdminFilterBar
+  // is used here without its visibility control.
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [limit, setLimit] = useState(50);
 
   useEffect(() => {
     fetchFeedback();
@@ -82,11 +90,18 @@ export default function Feedback() {
     return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
-  const filteredMessages = messages.filter(m => {
-    if (filter === 'unread') return !m.read;
-    if (filter === 'read') return m.read;
-    return true;
-  });
+  const filteredMessages = messages
+    .filter(m => {
+      if (filter === 'unread') return !m.read;
+      if (filter === 'read') return m.read;
+      return true;
+    })
+    .filter(m => {
+      if (startDate && new Date(m.created_at) < new Date(startDate)) return false;
+      if (endDate && new Date(m.created_at) > new Date(`${endDate}T23:59:59`)) return false;
+      return true;
+    })
+    .slice(0, limit);
 
   const unreadCount = messages.filter(m => !m.read).length;
 
@@ -107,6 +122,15 @@ export default function Feedback() {
             ))}
           </div>
         </div>
+
+        <AdminFilterBar
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          limit={limit}
+          onLimitChange={setLimit}
+        />
 
         <div className="space-y-3">
           {loading ? (

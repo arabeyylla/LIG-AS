@@ -1,14 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import AdminFilterBar from '../../components/admin/AdminFilterBar';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToast } from '../../hooks/useToast';
-import { Image, Plus, Trash2, Loader2, Upload, X, ImagePlus, Eye } from 'lucide-react';
+import { useSiteSetting } from '../../hooks/useSiteSetting';
+import { Image, Plus, Trash2, Loader2, Upload, X, ImagePlus, Eye, EyeOff, Monitor } from 'lucide-react';
+
+// Explicit MIME allowlist — stricter than the old "image/*" check, which
+// would also accept formats like GIF or SVG that aren't meant to be
+// uploaded here.
+const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const VISIBILITY_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Shown / Active' },
+  { value: 'hidden', label: 'Hidden' },
+];
+const DISPLAY_COUNT_OPTIONS = [3, 6, 9, 12];
 
 export default function Gallery() {
   const { confirm, confirmDialog } = useConfirm();
   const { showToast, toastElement } = useToast();
+  const { value: displayCount, save: saveDisplayCount, loading: displayCountLoading } = useSiteSetting('gallery_display_count', 6);
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -17,7 +32,14 @@ export default function Gallery() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
   const fileInputRef = useRef(null);
+
+  // Unified filter bar state (date range + visibility + limit)
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [visibility, setVisibility] = useState('all');
+  const [limit, setLimit] = useState(50);
 
   useEffect(() => { fetchImages(); }, []);
 
@@ -41,8 +63,16 @@ export default function Gallery() {
   function handleFileSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { showToast('Please select an image file.', 'error'); return; }
-    if (file.size > 5 * 1024 * 1024) { showToast('File size must be less than 5MB.', 'error'); return; }
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      showToast('Only PNG, JPEG, or WebP images are allowed.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      showToast('File size exceeds the 5MB limit. Please choose a smaller image.', 'error');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
     setSelectedFile(file);
     setPreview(URL.createObjectURL(file));
   }
@@ -123,10 +153,54 @@ export default function Gallery() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  async function toggleActive(image) {
+    const nextActive = !(image.is_active ?? true);
+    setTogglingId(image.id);
+    try {
+      const { error } = await supabase.from('gallery').update({ is_active: nextActive }).eq('id', image.id);
+      if (error) throw error;
+      setImages((prev) => prev.map((i) => (i.id === image.id ? { ...i, is_active: nextActive } : i)));
+      logSystemEvent(nextActive ? 'gallery.image_shown' : 'gallery.image_hidden', {}, 'gallery', image.id);
+      showToast(nextActive ? 'Photo is now visible on the public site.' : 'Photo hidden from the public site.', 'success');
+    } catch (err) {
+      console.error('Failed to update visibility:', err.message);
+      showToast('Failed to update visibility: ' + err.message, 'error');
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  async function handleDisplayCountChange(nextCount) {
+    const { error } = await saveDisplayCount(nextCount);
+    if (error) {
+      console.error('Failed to save display count:', error.message);
+      showToast('Failed to save display setting: ' + error.message, 'error');
+    } else {
+      logSystemEvent('site_settings.updated', { key: 'gallery_display_count', value: nextCount }, 'site_settings');
+      showToast(`Landing page will now show up to ${nextCount} active screenshots.`, 'success');
+    }
+  }
+
+  // `is_active` defaults to true for rows created before this column
+  // existed (`?? true`), so nothing that was visible before appears hidden.
+  const filteredImages = useMemo(() => {
+    return images
+      .filter((img) => {
+        const active = img.is_active ?? true;
+        if (visibility === 'active' && !active) return false;
+        if (visibility === 'hidden' && active) return false;
+        const dateField = img.created_at || img.uploaded_at;
+        if (startDate && dateField && new Date(dateField) < new Date(startDate)) return false;
+        if (endDate && dateField && new Date(dateField) > new Date(`${endDate}T23:59:59`)) return false;
+        return true;
+      })
+      .slice(0, limit);
+  }, [images, visibility, startDate, endDate, limit]);
+
   return (
     <AdminLayout>
       <div className="w-full">
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-3xl lg:text-4xl xl:text-5xl font-black text-slate-800 tracking-tighter">Gallery</h1>
             <p className="text-slate-400 font-bold mt-2">Manage game screenshots displayed on the public site.</p>
@@ -137,6 +211,36 @@ export default function Gallery() {
             </button>
           )}
         </div>
+
+        <div className="flex items-center gap-3 mb-8 p-4 bg-white rounded-2xl border border-slate-100">
+          <Monitor className="text-slate-400 flex-shrink-0" size={18} />
+          <div className="flex-1">
+            <p className="text-sm font-bold text-slate-700">Display Count on Landing Page</p>
+            <p className="text-xs text-slate-400">How many active screenshots appear in the public carousel.</p>
+          </div>
+          <select
+            value={displayCount}
+            disabled={displayCountLoading}
+            onChange={(e) => handleDisplayCountChange(Number(e.target.value))}
+            className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-700 outline-none cursor-pointer disabled:opacity-50"
+          >
+            {DISPLAY_COUNT_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
+
+        <AdminFilterBar
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+          visibility={visibility}
+          onVisibilityChange={setVisibility}
+          visibilityOptions={VISIBILITY_OPTIONS}
+          limit={limit}
+          onLimitChange={setLimit}
+        />
 
         {showUpload && (
           <div className="bg-white rounded-[2rem] border border-slate-100 p-8 shadow-sm mb-8">
@@ -159,7 +263,7 @@ export default function Gallery() {
                     <p className="text-xs text-slate-300 mt-1">JPG, PNG, WebP (max 5MB)</p>
                   </div>
                 )}
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+                <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleFileSelect} className="hidden" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Caption (optional)</label>
@@ -178,37 +282,51 @@ export default function Gallery() {
 
         {loading ? (
           <div className="flex flex-col items-center py-20 text-slate-400 gap-4"><Loader2 className="animate-spin" size={40} /><p className="font-bold">Loading gallery...</p></div>
-        ) : images.length === 0 ? (
+        ) : filteredImages.length === 0 ? (
           <div className="text-center py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-100">
             <Image className="text-slate-200 mx-auto mb-4" size={48} />
-            <p className="text-slate-400 font-bold">No images yet.</p>
-            <p className="text-slate-300 text-sm mt-1">Upload game screenshots to display on the public site.</p>
+            <p className="text-slate-400 font-bold">{images.length === 0 ? 'No images yet.' : 'No images match your filters.'}</p>
+            {images.length === 0 && <p className="text-slate-300 text-sm mt-1">Upload game screenshots to display on the public site.</p>}
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {images.map((image) => (
-              <div key={image.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-lg transition-all group">
-                <div className="relative h-48 overflow-hidden">
-                  <img src={image.image_url} alt={image.caption || 'Gallery image'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
-                    <a href={image.image_url} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover:opacity-100 bg-white/90 p-3 rounded-xl transition-opacity"><Eye size={18} className="text-slate-700" /></a>
+            {filteredImages.map((image) => {
+              const active = image.is_active ?? true;
+              return (
+                <div key={image.id} className={`bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-lg transition-all group ${active ? '' : 'opacity-60'}`}>
+                  <div className="relative h-48 overflow-hidden">
+                    <img src={image.image_url} alt={image.caption || 'Gallery image'} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all flex items-center justify-center">
+                      <a href={image.image_url} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover:opacity-100 bg-white/90 p-3 rounded-xl transition-opacity"><Eye size={18} className="text-slate-700" /></a>
+                    </div>
+                    {!active && <span className="absolute top-3 left-3 px-2.5 py-0.5 bg-slate-800/90 text-white text-[10px] font-bold rounded-lg uppercase">Hidden</span>}
+                  </div>
+                  <div className="p-5 flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-slate-800 text-sm truncate">{image.caption || image.file_name || 'Untitled'}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">{image.uploaded_at ? new Date(image.uploaded_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' }) : '—'}</p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                      <button
+                        onClick={() => toggleActive(image)}
+                        disabled={togglingId === image.id}
+                        className={`p-2.5 rounded-xl transition-colors disabled:opacity-50 ${active ? 'bg-slate-100 hover:bg-slate-200 text-slate-500' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}
+                        title={active ? 'Hide from public site' : 'Show on public site'}
+                      >
+                        {togglingId === image.id ? <Loader2 size={16} className="animate-spin" /> : active ? <Eye size={16} /> : <EyeOff size={16} />}
+                      </button>
+                      <button onClick={() => handleDelete(image)} disabled={deletingId === image.id} className="p-2.5 bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 rounded-xl transition-colors disabled:opacity-50" title="Delete">
+                        {deletingId === image.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="p-5 flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-slate-800 text-sm truncate">{image.caption || image.file_name || 'Untitled'}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">{image.uploaded_at ? new Date(image.uploaded_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit', year: 'numeric' }) : '—'}</p>
-                  </div>
-                  <button onClick={() => handleDelete(image)} disabled={deletingId === image.id} className="p-2.5 bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 rounded-xl transition-colors disabled:opacity-50 flex-shrink-0 ml-3" title="Delete">
-                    {deletingId === image.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {!loading && images.length > 0 && <p className="text-center text-sm text-slate-400 mt-8">{images.length} image{images.length !== 1 ? 's' : ''} in gallery</p>}
+        {!loading && filteredImages.length > 0 && <p className="text-center text-sm text-slate-400 mt-8">{filteredImages.length} of {images.length} image{images.length !== 1 ? 's' : ''} shown</p>}
       </div>
 
       {confirmDialog}
