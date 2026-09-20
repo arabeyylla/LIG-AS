@@ -1,10 +1,12 @@
 import { X, CheckCircle2, XCircle } from 'lucide-react';
+import { getCategory } from '../../lib/assessmentCategories';
 
 /**
- * Detail drawer for a single `assessment_results` row (one disaster
- * module's worth of a submission). `siblingRows` are the other module rows
- * from the same attempt (same identifier + assessment_type + created_at) —
- * pass them so the admin can see the full attempt, not just this module.
+ * Detail drawer for a single `assessment_results` row (one attempt at one
+ * category). `siblingRows` are the other rows from the same sitting (same
+ * identifier + assessment_type + created_at). Current submissions are a
+ * single row per attempt; older ones were split per module, and passing
+ * their siblings lets the admin still see the full legacy attempt.
  */
 export default function AssessmentDetailModal({ row, siblingRows = [], onClose }) {
   if (!row) return null;
@@ -20,7 +22,7 @@ export default function AssessmentDetailModal({ row, siblingRows = [], onClose }
           <div>
             <h3 className="font-black text-slate-800 text-lg">{row.identifier}</h3>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
-              {row.assessment_type === 'pre-assessment' ? 'Pre-Assessment' : 'Post-Assessment'} &middot; {row.disaster_module}
+              {row.assessment_type === 'pre-assessment' ? 'Pre-Assessment' : 'Post-Assessment'} &middot; {getCategory(row.disaster_module).label}
             </p>
           </div>
           <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-800 transition-colors flex-shrink-0" aria-label="Close">
@@ -30,7 +32,7 @@ export default function AssessmentDetailModal({ row, siblingRows = [], onClose }
 
         <div className="p-6 sm:p-8 space-y-6">
           <div className="flex flex-wrap gap-3">
-            <Stat label="Module Score" value={`${row.score}/${row.total_questions} (${percent}%)`} />
+            <Stat label="Score" value={`${row.score}/${row.total_questions} (${percent}%)`} />
             <Stat label="Confidence" value={row.likert_preparedness_rating ? `${row.likert_preparedness_rating}/5` : '—'} />
             <Stat label="Submitted" value={new Date(row.created_at).toLocaleString()} />
           </div>
@@ -41,7 +43,7 @@ export default function AssessmentDetailModal({ row, siblingRows = [], onClose }
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {siblingRows.map((s) => (
                   <div key={s.id} className={`p-3 rounded-xl text-center ${s.id === row.id ? 'bg-orange-50 border border-orange-200' : 'bg-slate-50'}`}>
-                    <p className="text-[10px] font-black text-slate-400 uppercase">{s.disaster_module}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase">{getCategory(s.disaster_module).label}</p>
                     <p className="text-sm font-black text-slate-800 mt-1">{s.score}/{s.total_questions}</p>
                   </div>
                 ))}

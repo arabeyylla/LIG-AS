@@ -5,8 +5,17 @@ import { useAssessmentQuestions } from '../../hooks/useAssessmentQuestions';
 import { useSiteSetting } from '../../hooks/useSiteSetting';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToast } from '../../hooks/useToast';
-import { DISASTER_MODULES, DEFAULT_MODULE_QUOTAS } from '../../lib/assessmentQuestionBank';
-import { Plus, Edit3, Trash2, Loader2, Eye, EyeOff, Search, HelpCircle, Shuffle, Save, X, CheckCircle2 } from 'lucide-react';
+import {
+  ASSESSMENT_CATEGORIES,
+  ENABLED_CATEGORIES_KEY,
+  DEFAULT_ENABLED_CATEGORIES,
+  QUESTIONS_PER_ATTEMPT_KEY,
+  DEFAULT_QUESTIONS_PER_ATTEMPT,
+  getCategory,
+  isCategoryEnabled,
+  normalizeQuestionCount,
+} from '../../lib/assessmentCategories';
+import { Plus, Edit3, Trash2, Loader2, Eye, EyeOff, Search, HelpCircle, LayoutGrid, Save, X, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 const EMPTY_FORM = {
   assessment_type: 'pre-assessment',
@@ -19,15 +28,17 @@ const EMPTY_FORM = {
 
 /**
  * "Question Bank" sub-tab of the admin Assessment Results page. Lets an
- * admin see every question, add/edit/delete questions and their choices,
- * toggle which ones are eligible to appear on the public site, and
- * configure the per-module randomization quotas that control how many
- * questions are drawn into each session.
+ * admin:
+ *   - filter questions by Category (Earthquake, Typhoon, ...) and Assessment
+ *     Type (Pre vs. Post), with the list grouped by category,
+ *   - add/edit/delete questions and their choices,
+ *   - exclude individual questions from the public site,
+ *   - show/hide whole categories on the public category picker and set how
+ *     many questions each attempt draws (see CategorySettings below).
  *
- * The public Assessment page (src/pages/Assessment.jsx) reads from this
- * same `assessment_questions` table via fetchQuestionPool() and falls back
- * to the built-in static bank if this table is empty or unreachable — so
- * the site keeps working even before any admin touches this tab.
+ * The public Assessment page (src/pages/Assessment.jsx) reads the same
+ * `assessment_questions` table via fetchCategoryQuestions() and falls back to
+ * the built-in static bank only if Supabase can't be reached.
  */
 export default function AssessmentQuestionManager() {
   const { questions, loading, removeLocal } = useAssessmentQuestions();
@@ -35,7 +46,7 @@ export default function AssessmentQuestionManager() {
   const { showToast, toastElement } = useToast();
 
   const [typeFilter, setTypeFilter] = useState('all');
-  const [moduleFilter, setModuleFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [activeFilter, setActiveFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -50,14 +61,31 @@ export default function AssessmentQuestionManager() {
     const needle = search.trim().toLowerCase();
     return questions.filter((q) => {
       if (typeFilter !== 'all' && q.assessment_type !== typeFilter) return false;
-      if (moduleFilter !== 'all' && q.module !== moduleFilter) return false;
+      if (categoryFilter !== 'all' && q.module !== categoryFilter) return false;
       const active = q.is_active ?? true;
       if (activeFilter === 'active' && !active) return false;
       if (activeFilter === 'inactive' && active) return false;
       if (needle && !q.question.toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [questions, typeFilter, moduleFilter, activeFilter, search]);
+  }, [questions, typeFilter, categoryFilter, activeFilter, search]);
+
+  // Filtered questions grouped by category (in the picker's display order),
+  // Pre before Post inside each group. Questions saved under a category that
+  // is no longer configured (e.g. the retired 'Flood' questions) get their own
+  // trailing group so they can still be reviewed or deleted.
+  const groupedQuestions = useMemo(() => {
+    const knownIds = new Set(ASSESSMENT_CATEGORIES.map((c) => c.id));
+    const legacyIds = [...new Set(filteredQuestions.map((q) => q.module).filter((id) => !knownIds.has(id)))];
+    return [...ASSESSMENT_CATEGORIES, ...legacyIds.map(getCategory)]
+      .map((category) => ({
+        category,
+        items: filteredQuestions
+          .filter((q) => q.module === category.id)
+          .sort((a, b) => b.assessment_type.localeCompare(a.assessment_type)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [filteredQuestions]);
 
   function validateForm() {
     if (!formData.question.trim()) return 'Please enter the question text.';
@@ -76,7 +104,7 @@ export default function AssessmentQuestionManager() {
       const payload = {
         assessment_type: formData.assessment_type,
         module: formData.module,
-        category: formData.module,
+        category: getCategory(formData.module).label, // display label; `module` holds the category id
         question: formData.question.trim(),
         options: formData.options.map((o) => o.trim()),
         correct_index: formData.correct_index,
@@ -165,7 +193,12 @@ export default function AssessmentQuestionManager() {
 
   function handleStartNew() {
     setEditingId(null);
-    setFormData(EMPTY_FORM);
+    // Pre-select whatever the admin is currently filtering by.
+    setFormData({
+      ...EMPTY_FORM,
+      assessment_type: typeFilter !== 'all' ? typeFilter : EMPTY_FORM.assessment_type,
+      module: categoryFilter !== 'all' ? categoryFilter : EMPTY_FORM.module,
+    });
     setShowForm(true);
   }
 
@@ -176,7 +209,7 @@ export default function AssessmentQuestionManager() {
 
   return (
     <div className="space-y-6">
-      <RandomizationSettings showToast={showToast} />
+      <CategorySettings questions={questions} showToast={showToast} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-black text-slate-800 text-lg">All Questions ({questions.length})</h3>
@@ -198,10 +231,10 @@ export default function AssessmentQuestionManager() {
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Module</label>
-          <select value={moduleFilter} onChange={(e) => setModuleFilter(e.target.value)} className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
-            <option value="all">All Modules</option>
-            {DISASTER_MODULES.map((m) => <option key={m} value={m}>{m}</option>)}
+          <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Category</label>
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
+            <option value="all">All Categories</option>
+            {ASSESSMENT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
           </select>
         </div>
         <div>
@@ -241,61 +274,69 @@ export default function AssessmentQuestionManager() {
           <div className="text-center py-16 bg-white rounded-[2rem] border-2 border-dashed border-slate-100">
             <HelpCircle className="text-slate-200 mx-auto mb-3" size={40} />
             <p className="text-slate-400 font-bold text-sm">
-              {questions.length === 0 ? "No questions in the database yet — the site is currently using the built-in default question bank." : 'No questions match your filters.'}
+              {questions.length === 0 ? 'No questions in the database yet. Add some here so players can take the assessment.' : 'No questions match your filters.'}
             </p>
           </div>
         ) : (
-          filteredQuestions.map((q) => {
-            // Inline edit: this card becomes the edit form in place.
-            if (editingId === q.id) {
-              return (
-                <div key={q.id} className="bg-white rounded-2xl border-2 border-orange-300 p-6 shadow-sm">
-                  <div className="flex items-center gap-3 mb-5"><Edit3 className="text-orange-500" size={18} /><h4 className="font-black text-slate-800">Editing Question</h4></div>
-                  <QuestionFormFields formData={formData} setFormData={setFormData} onSubmit={handleSubmit} submitting={submitting} onCancel={handleCancelEdit} submitLabel="Update Question" />
-                </div>
-              );
-            }
+          groupedQuestions.map(({ category, items }) => (
+            <section key={category.id} className="space-y-3">
+              <h4 className="flex items-center gap-2 pt-2 text-xs font-black text-slate-400 uppercase tracking-widest">
+                <span aria-hidden="true" className="text-base">{category.emoji}</span> {category.label}
+                <span className="text-slate-300">&middot; {items.length} question{items.length !== 1 ? 's' : ''}</span>
+              </h4>
+              {items.map((q) => {
+                // Inline edit: this card becomes the edit form in place.
+                if (editingId === q.id) {
+                  return (
+                    <div key={q.id} className="bg-white rounded-2xl border-2 border-orange-300 p-6 shadow-sm">
+                      <div className="flex items-center gap-3 mb-5"><Edit3 className="text-orange-500" size={18} /><h4 className="font-black text-slate-800">Editing Question</h4></div>
+                      <QuestionFormFields formData={formData} setFormData={setFormData} onSubmit={handleSubmit} submitting={submitting} onCancel={handleCancelEdit} submitLabel="Update Question" />
+                    </div>
+                  );
+                }
 
-            const active = q.is_active ?? true;
-            return (
-              <div key={q.id} className={`bg-white rounded-2xl border p-5 shadow-sm transition-all ${active ? 'border-slate-100' : 'border-slate-100 opacity-60'}`}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className={`px-2.5 py-0.5 text-[10px] font-black uppercase rounded-md ${q.assessment_type === 'pre-assessment' ? 'bg-slate-100 text-slate-600' : 'bg-orange-100 text-orange-600'}`}>
-                        {q.assessment_type === 'pre-assessment' ? 'Pre' : 'Post'}
-                      </span>
-                      <span className="px-2.5 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase rounded-md">{q.module}</span>
-                      {!active && <span className="px-2.5 py-0.5 bg-slate-200 text-slate-600 text-[10px] font-black uppercase rounded-md">Excluded</span>}
-                    </div>
-                    <p className="font-bold text-slate-800 text-sm mb-2">{q.question}</p>
-                    <div className="grid sm:grid-cols-2 gap-1.5">
-                      {q.options.map((opt, idx) => (
-                        <div key={idx} className={`flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg ${idx === q.correct_index ? 'bg-green-50 text-green-700 font-bold' : 'bg-slate-50 text-slate-500'}`}>
-                          {idx === q.correct_index && <CheckCircle2 size={12} className="flex-shrink-0" />}
-                          <span className="truncate">{String.fromCharCode(65 + idx)}. {opt}</span>
+                const active = q.is_active ?? true;
+                return (
+                  <div key={q.id} className={`bg-white rounded-2xl border p-5 shadow-sm transition-all ${active ? 'border-slate-100' : 'border-slate-100 opacity-60'}`}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className={`px-2.5 py-0.5 text-[10px] font-black uppercase rounded-md ${q.assessment_type === 'pre-assessment' ? 'bg-slate-100 text-slate-600' : 'bg-orange-100 text-orange-600'}`}>
+                            {q.assessment_type === 'pre-assessment' ? 'Pre' : 'Post'}
+                          </span>
+                          <span className="px-2.5 py-0.5 bg-blue-100 text-blue-600 text-[10px] font-black uppercase rounded-md">{getCategory(q.module).label}</span>
+                          {!active && <span className="px-2.5 py-0.5 bg-slate-200 text-slate-600 text-[10px] font-black uppercase rounded-md">Excluded</span>}
                         </div>
-                      ))}
+                        <p className="font-bold text-slate-800 text-sm mb-2">{q.question}</p>
+                        <div className="grid sm:grid-cols-2 gap-1.5">
+                          {q.options.map((opt, idx) => (
+                            <div key={idx} className={`flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg ${idx === q.correct_index ? 'bg-green-50 text-green-700 font-bold' : 'bg-slate-50 text-slate-500'}`}>
+                              {idx === q.correct_index && <CheckCircle2 size={12} className="flex-shrink-0" />}
+                              <span className="truncate">{String.fromCharCode(65 + idx)}. {opt}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => toggleActive(q)}
+                          disabled={togglingId === q.id}
+                          className={`p-2.5 rounded-xl transition-colors disabled:opacity-50 ${active ? 'bg-slate-100 hover:bg-slate-200 text-slate-500' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}
+                          title={active ? 'Exclude from future assessments' : 'Make eligible again'}
+                        >
+                          {togglingId === q.id ? <Loader2 size={16} className="animate-spin" /> : active ? <Eye size={16} /> : <EyeOff size={16} />}
+                        </button>
+                        <button onClick={() => handleEdit(q)} className="p-2.5 bg-slate-100 hover:bg-blue-500 hover:text-white text-slate-500 rounded-xl transition-colors" title="Edit"><Edit3 size={16} /></button>
+                        <button onClick={() => handleDelete(q)} disabled={deletingId === q.id} className="p-2.5 bg-slate-100 hover:bg-red-500 hover:text-white text-slate-500 rounded-xl transition-colors disabled:opacity-50" title="Delete">
+                          {deletingId === q.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => toggleActive(q)}
-                      disabled={togglingId === q.id}
-                      className={`p-2.5 rounded-xl transition-colors disabled:opacity-50 ${active ? 'bg-slate-100 hover:bg-slate-200 text-slate-500' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}
-                      title={active ? 'Exclude from future assessments' : 'Make eligible again'}
-                    >
-                      {togglingId === q.id ? <Loader2 size={16} className="animate-spin" /> : active ? <Eye size={16} /> : <EyeOff size={16} />}
-                    </button>
-                    <button onClick={() => handleEdit(q)} className="p-2.5 bg-slate-100 hover:bg-blue-500 hover:text-white text-slate-500 rounded-xl transition-colors" title="Edit"><Edit3 size={16} /></button>
-                    <button onClick={() => handleDelete(q)} disabled={deletingId === q.id} className="p-2.5 bg-slate-100 hover:bg-red-500 hover:text-white text-slate-500 rounded-xl transition-colors disabled:opacity-50" title="Delete">
-                      {deletingId === q.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })
+                );
+              })}
+            </section>
+          ))
         )}
       </div>
 
@@ -327,9 +368,13 @@ function QuestionFormFields({ formData, setFormData, onSubmit, submitting, onCan
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Disaster Module</label>
+          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Category</label>
           <select value={formData.module} onChange={(e) => setFormData({ ...formData, module: e.target.value })} className="w-full p-3.5 bg-slate-50 border-2 border-transparent focus:border-orange-500 rounded-xl font-bold text-slate-800 outline-none transition-all appearance-none">
-            {DISASTER_MODULES.map((m) => <option key={m} value={m}>{m}</option>)}
+            {ASSESSMENT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
+            {/* Editing a legacy question: keep its retired category selectable so the form doesn't silently show another one. */}
+            {!ASSESSMENT_CATEGORIES.some((c) => c.id === formData.module) && (
+              <option value={formData.module}>{formData.module} (retired)</option>
+            )}
           </select>
         </div>
       </div>
@@ -385,64 +430,148 @@ function QuestionFormFields({ formData, setFormData, onSubmit, submitting, onCan
   );
 }
 
-// How many questions to randomly draw from each disaster module per
-// attempt (shared by both Pre- and Post-Assessment). Stored in
-// site_settings under `assessment_module_quotas` and read by
-// src/pages/Assessment.jsx when building a session.
-function RandomizationSettings({ showToast }) {
-  const { value: quotas, save: saveQuotas, loading } = useSiteSetting('assessment_module_quotas', DEFAULT_MODULE_QUOTAS);
-  const [draft, setDraft] = useState(quotas);
-  const [saving, setSaving] = useState(false);
+// Admin controls for the public category picker, stored in `site_settings`:
+//   assessment_enabled_categories     { [categoryId]: boolean } — which
+//                                     category cards players can see
+//   assessment_questions_per_attempt  how many questions each attempt draws
+// The coverage line under each category shows how many ACTIVE questions it has
+// per assessment type, so an admin can see at a glance whether a category is
+// ready to be switched on. Toggles save immediately; the per-attempt number
+// has its own Save button.
+function CategorySettings({ questions, showToast }) {
+  const { value: enabledMap, save: saveEnabled, loading: enabledLoading } = useSiteSetting(ENABLED_CATEGORIES_KEY, DEFAULT_ENABLED_CATEGORIES);
+  const { value: perAttemptSetting, save: savePerAttempt, loading: perAttemptLoading } = useSiteSetting(QUESTIONS_PER_ATTEMPT_KEY, DEFAULT_QUESTIONS_PER_ATTEMPT);
+  const perAttempt = normalizeQuestionCount(perAttemptSetting);
 
-  useEffect(() => { setDraft(quotas); }, [quotas]);
+  const [countDraft, setCountDraft] = useState(perAttempt);
+  const [savingCount, setSavingCount] = useState(false);
+  const [togglingId, setTogglingId] = useState(null);
 
-  const total = DISASTER_MODULES.reduce((sum, m) => sum + (Number(draft[m]) || 0), 0);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(quotas);
+  useEffect(() => { setCountDraft(perAttempt); }, [perAttempt]);
 
-  async function handleSave() {
-    setSaving(true);
-    const { error } = await saveQuotas(draft);
-    setSaving(false);
+  // { [categoryId]: { pre, post } } — active question counts.
+  const activeCounts = useMemo(() => {
+    const counts = Object.fromEntries(ASSESSMENT_CATEGORIES.map((c) => [c.id, { pre: 0, post: 0 }]));
+    questions.forEach((q) => {
+      if (!(q.is_active ?? true) || !counts[q.module]) return;
+      counts[q.module][q.assessment_type === 'pre-assessment' ? 'pre' : 'post'] += 1;
+    });
+    return counts;
+  }, [questions]);
+
+  async function toggleCategory(category) {
+    const nextEnabled = !isCategoryEnabled(enabledMap, category.id);
+    setTogglingId(category.id);
+    const { error } = await saveEnabled({ ...DEFAULT_ENABLED_CATEGORIES, ...enabledMap, [category.id]: nextEnabled });
+    setTogglingId(null);
     if (error) {
-      showToast('Failed to save randomization settings: ' + error.message, 'error');
-    } else {
-      showToast(`Each attempt will now draw ${total} questions total.`, 'success');
+      showToast('Failed to update category: ' + error.message, 'error');
+      return;
     }
+    logSystemEvent(nextEnabled ? 'assessment_category.enabled' : 'assessment_category.disabled', { category: category.id }, 'site_settings', ENABLED_CATEGORIES_KEY);
+    showToast(`${category.label} is now ${nextEnabled ? 'visible to' : 'hidden from'} players.`, 'success');
   }
+
+  async function handleSaveCount() {
+    const next = normalizeQuestionCount(countDraft);
+    setSavingCount(true);
+    const { error } = await savePerAttempt(next);
+    setSavingCount(false);
+    if (error) {
+      showToast('Failed to save setting: ' + error.message, 'error');
+      return;
+    }
+    logSystemEvent('assessment_settings.questions_per_attempt', { value: next }, 'site_settings', QUESTIONS_PER_ATTEMPT_KEY);
+    showToast(`Each attempt will now draw up to ${next} questions.`, 'success');
+  }
+
+  const countDirty = normalizeQuestionCount(countDraft) !== perAttempt;
 
   return (
     <div className="bg-white rounded-[2rem] border border-slate-100 p-6 sm:p-8 shadow-sm">
       <div className="flex items-center gap-3 mb-2">
-        <Shuffle className="text-orange-500" size={22} />
-        <h3 className="font-black text-slate-800 text-lg">Randomization Settings</h3>
+        <LayoutGrid className="text-orange-500" size={22} />
+        <h3 className="font-black text-slate-800 text-lg">Category Settings</h3>
       </div>
       <p className="text-sm text-slate-400 mb-6">
-        How many questions to randomly draw from each disaster module per attempt. Both Pre- and Post-Assessment use these same quotas; options are always shuffled per question.
+        Choose which disaster categories players can pick on the public Assessment page. Each attempt draws random questions
+        from one category, with answer choices shuffled every time.
       </p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        {DISASTER_MODULES.map((moduleName) => (
-          <div key={moduleName}>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1.5">{moduleName}</label>
-            <input
-              type="number"
-              min={0}
-              max={20}
-              value={draft[moduleName] ?? 0}
-              onChange={(e) => setDraft((prev) => ({ ...prev, [moduleName]: Math.max(0, Number(e.target.value) || 0) }))}
-              className="w-full p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black text-slate-800 outline-none focus:border-orange-500 transition-all"
-            />
-          </div>
-        ))}
+
+      <div className="divide-y divide-slate-50 mb-6">
+        {ASSESSMENT_CATEGORIES.map((category) => {
+          const enabled = isCategoryEnabled(enabledMap, category.id);
+          const { pre, post } = activeCounts[category.id];
+          const missing = [pre === 0 && 'Pre', post === 0 && 'Post'].filter(Boolean);
+          const short = Math.min(pre, post) < perAttempt;
+          return (
+            <div key={category.id} className="flex flex-wrap items-center gap-x-6 gap-y-2 py-4">
+              <div className="flex items-center gap-3 flex-1 min-w-[180px]">
+                <span className="text-2xl" aria-hidden="true">{category.emoji}</span>
+                <div>
+                  <p className="font-black text-slate-800 text-sm">{category.label}</p>
+                  <p className="text-xs font-bold text-slate-400">
+                    {pre} Pre &middot; {post} Post active question{pre + post !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+
+              {enabled && short && (
+                <p className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
+                  <AlertTriangle size={13} className="flex-shrink-0" />
+                  {missing.length > 0
+                    ? `No ${missing.join(' or ')} questions — players cannot start ${missing.length > 1 ? 'either assessment' : 'that assessment'}.`
+                    : `Under ${perAttempt} questions — attempts will use all that are available.`}
+                </p>
+              )}
+
+              <button
+                type="button"
+                role="switch"
+                aria-checked={enabled}
+                aria-label={`${enabled ? 'Hide' : 'Show'} ${category.label} on the public site`}
+                onClick={() => toggleCategory(category)}
+                disabled={enabledLoading || togglingId === category.id}
+                className="flex items-center gap-3 disabled:opacity-50"
+              >
+                <span className={`text-xs font-black uppercase tracking-wider w-14 text-right ${enabled ? 'text-green-600' : 'text-slate-400'}`}>
+                  {enabled ? 'Visible' : 'Hidden'}
+                </span>
+                <span className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors ${enabled ? 'bg-green-500' : 'bg-slate-200'}`}>
+                  {togglingId === category.id ? (
+                    <Loader2 size={14} className="animate-spin absolute top-1 left-1/2 -translate-x-1/2 text-white" />
+                  ) : (
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${enabled ? 'left-[1.375rem]' : 'left-0.5'}`} />
+                  )}
+                </span>
+              </button>
+            </div>
+          );
+        })}
       </div>
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <p className="text-sm font-bold text-slate-600">Total per attempt: <span className="text-orange-500">{total}</span> question{total !== 1 ? 's' : ''}</p>
+
+      <div className="flex items-end justify-between flex-wrap gap-4 pt-6 border-t border-slate-100">
+        <div>
+          <label htmlFor="questions-per-attempt" className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1.5">
+            Questions per attempt
+          </label>
+          <input
+            id="questions-per-attempt"
+            type="number"
+            min={1}
+            max={50}
+            value={countDraft}
+            onChange={(e) => setCountDraft(e.target.value)}
+            className="w-28 p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black text-slate-800 outline-none focus:border-orange-500 transition-all"
+          />
+        </div>
         <button
-          onClick={handleSave}
-          disabled={!dirty || saving || loading}
+          onClick={handleSaveCount}
+          disabled={!countDirty || savingCount || perAttemptLoading}
           className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          Save Settings
+          {savingCount ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          Save
         </button>
       </div>
     </div>

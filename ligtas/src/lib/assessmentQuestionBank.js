@@ -1,8 +1,12 @@
 import { supabase } from './supabase';
+import { CATEGORY_IDS, DEFAULT_QUESTIONS_PER_ATTEMPT } from './assessmentCategories';
 
 // ---------------------------------------------------------------------------
-// Assessment question bank — PARALLEL FORMS design, now with 20 questions
-// per bank (5 per disaster module) and per-session randomization.
+// Assessment question bank — PARALLEL FORMS design, with 15 questions per
+// bank (5 for each of Earthquake, Typhoon, and General Preparedness) and
+// per-session randomization. This built-in bank is only the offline fallback;
+// the live question bank (including the Landslide, Tsunami, and Volcanic
+// Eruption categories) is managed in Admin > Assessment > Question Bank.
 //
 // Pre- and Post-Assessment intentionally use DIFFERENT scenarios per module
 // (not the same questions reworded) so a post-test score reflects retained
@@ -13,7 +17,7 @@ import { supabase } from './supabase';
 // questions test reasoning, not just elimination.
 //
 // `category` is the display label on the question card; `module` is the
-// normalized disaster_module value written to Supabase. `correctIndex` is
+// category id (see assessmentCategories.js) written to Supabase. `correctIndex` is
 // the zero-based index of the correct option in the ORIGINAL (unshuffled)
 // `options` array below — see shuffleQuestionOptions, which re-derives the
 // correct index after shuffling for display.
@@ -147,71 +151,6 @@ const PRE_QUESTION_BANK = [
       'Identify a higher-ground evacuation route in advance, in case of flash flooding',
       'Ignore the river since typhoons mainly bring wind, not flooding',
       'Wait for the river to visibly overflow before making any plans',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-fl1',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'Floodwater has risen ankle-deep on the street outside your home, and your car is parked there. What is the safest choice?',
-    options: [
-      'Quickly drive the car to higher ground before the water rises further',
-      'Leave the car — moving water as shallow as six inches can sweep it off the road or stall the engine',
-      'Push the car manually into a garage to protect it',
-      'Wait inside the car until the water recedes',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-fl2',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'You’re indoors and floodwater starts entering the ground floor of your house. What should you prioritize?',
-    options: [
-      'Stay on the ground floor to protect your belongings',
-      'Move to a higher floor or the roof, avoiding enclosed spaces like attics without an exit',
-      'Go outside and wade through the water to a neighbor’s house immediately',
-      'Use electrical appliances as usual since the power is still on',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-fl3',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'Which statement about floodwater is TRUE?',
-    options: [
-      'Floodwater is generally clean and safe to walk through',
-      'Floodwater can be contaminated and may hide hazards like open manholes or debris',
-      'Floodwater only poses a risk if it is above your waist',
-      'Floodwater cannot carry electrical current',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-fl4',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'A flood advisory has been issued for your barangay. What is the most appropriate action?',
-    options: [
-      'Ignore it unless you can already see water on the street',
-      'Monitor official updates, prepare a go-bag, and be ready to evacuate to higher ground if advised',
-      'Drive around the area to check water levels yourself',
-      'Wait for the water to reach your doorstep before doing anything',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'pre-fl5',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'Why should you avoid contact with electrical equipment or outlets during or after a flood?',
-    options: [
-      'It’s not actually necessary if the equipment looks dry',
-      'Water and dampness can conduct electricity and cause electrocution',
-      'Electrical equipment automatically shuts off during floods',
-      'Only outdoor outlets pose any electrocution risk',
     ],
     correctIndex: 1,
   },
@@ -414,71 +353,6 @@ const POST_QUESTION_BANK = [
     correctIndex: 0,
   },
   {
-    id: 'post-fl1',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'You need to evacuate on foot and the only route crosses moving floodwater that looks shallow. What is the safest approach?',
-    options: [
-      'Walk quickly through the fastest-looking path to minimize exposure time',
-      'Avoid the water if at all possible; if you must cross, use a stick to check depth and never cross water above your knees',
-      'It’s safe to wade through as long as it doesn’t reach your waist',
-      'Hold hands with others in a line and walk through together for stability',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'post-fl2',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'While driving, you encounter a flooded roadway ahead with water covering the tires of stalled cars. What should you do?',
-    options: [
-      'Continue slowly since your vehicle is larger than the stalled ones',
-      'Turn around and find an alternate route — do not attempt to cross',
-      'Follow closely behind another vehicle that is crossing',
-      'Wait in the car in the middle of the flooded road until it’s over',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'post-fl3',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'After a flood recedes from your home, what is the recommended FIRST step before cleaning up?',
-    options: [
-      'Immediately turn the electricity back on to power fans and lights',
-      'Have utilities inspected and confirmed safe before turning them back on, and wear protective gear while cleaning',
-      'Begin cleaning without checking for structural or electrical hazards',
-      'Eat any food that was exposed to floodwater to avoid waste',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'post-fl4',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'Why do local governments often issue mandatory evacuation orders in flood-prone areas even if residents want to stay?',
-    options: [
-      'To inconvenience residents unnecessarily',
-      'Because rescue becomes far more dangerous once floodwaters rise further, and early evacuation protects lives',
-      'Because it’s standard procedure with no real safety reasoning',
-      'Evacuation orders are optional and rarely necessary',
-    ],
-    correctIndex: 1,
-  },
-  {
-    id: 'post-fl5',
-    category: 'Flood',
-    module: 'Flood',
-    question: 'What is a practical way to reduce flood risk to important documents and valuables before flood season?',
-    options: [
-      'Leave them on the floor for easy access',
-      'Store them in a waterproof container and keep copies or digital backups',
-      'Assume documents don’t need any special protection',
-      'Only protect documents during the flood itself, not beforehand',
-    ],
-    correctIndex: 1,
-  },
-  {
     id: 'post-gen1',
     category: 'General Preparedness',
     module: 'General',
@@ -547,19 +421,7 @@ const POST_QUESTION_BANK = [
 
 export const QUESTION_BANKS = { pre: PRE_QUESTION_BANK, post: POST_QUESTION_BANK };
 
-export const DISASTER_MODULES = ['Earthquake', 'Typhoon', 'Flood', 'General'];
-
-// Default "how many questions per module" quotas for a session. Stratified
-// (not pure random) so every attempt covers all 4 modules — pure random
-// draws from a flat pool could occasionally skip a module entirely, which
-// would leave a gap in that module's admin pass-rate stat for this attempt
-// and wouldn't reflect broad preparedness coverage.
-//
-// This is the FALLBACK used when the admin hasn't configured custom quotas
-// (or Supabase isn't reachable) — see site_settings key
-// `assessment_module_quotas`, editable from the admin Assessment Results >
-// Question Bank tab.
-export const DEFAULT_MODULE_QUOTAS = { Earthquake: 3, Typhoon: 3, Flood: 2, General: 2 };
+export const ASSESSMENT_TYPE_BY_MODE = { pre: 'pre-assessment', post: 'post-assessment' };
 
 /** Fisher-Yates shuffle. Returns a new array; does not mutate the input. */
 export function shuffleArray(arr) {
@@ -583,64 +445,80 @@ export function shuffleQuestionOptions(question) {
 }
 
 /**
- * Draws a randomized session from an already-resolved `pool` of questions
- * (each `{ id, category, module, question, options, correctIndex }`):
- * `quotas` unique questions per module (no repeats within a session),
- * each question's option order shuffled, and the overall question order
- * shuffled. Pure function — `pool` can come from the static bank or from
- * Supabase (see fetchQuestionPool below). Call fresh for every new attempt
- * (mode switch or retake) — never reuse a session's array across attempts,
- * or "randomize every attempt" stops being true.
+ * Draws one attempt's questions from an already-category-filtered `pool`
+ * (each `{ id, category, module, question, options, correctIndex }`): `count`
+ * unique questions in random order, each with its options shuffled. If the
+ * pool has fewer than `count` questions, all of them are used. Pure function —
+ * call it fresh for every new attempt (first start or retake); reusing a
+ * previous array would defeat "randomize every attempt".
  */
-export function pickSessionQuestions(pool, quotas = DEFAULT_MODULE_QUOTAS) {
-  const picked = Object.entries(quotas).flatMap(([moduleName, quota]) => {
-    const moduleQuestions = pool.filter((q) => q.module === moduleName);
-    return shuffleArray(moduleQuestions).slice(0, Math.min(quota, moduleQuestions.length));
-  });
-  return shuffleArray(picked).map(shuffleQuestionOptions);
+export function pickCategoryQuestions(pool, count = DEFAULT_QUESTIONS_PER_ATTEMPT) {
+  return shuffleArray(pool).slice(0, count).map(shuffleQuestionOptions);
+}
+
+// Built-in fallback bank, filtered to one category. Only used when Supabase
+// is unconfigured or a query fails — NOT when the DB simply has no active
+// questions, so an admin who deactivates a category's questions isn't
+// silently overridden by the hardcoded bank.
+function staticQuestions(mode, category) {
+  return (QUESTION_BANKS[mode] || QUESTION_BANKS.pre).filter((q) => q.module === category);
 }
 
 /**
- * Convenience wrapper around pickSessionQuestions using the static
- * hardcoded bank for `mode` ('pre' | 'post') — the fallback path used when
- * Supabase isn't configured or the `assessment_questions` table can't be
- * reached. See src/pages/Assessment.jsx for where the DB pool is preferred
- * when available.
+ * Fetches the active, admin-managed questions for one `mode` ('pre' | 'post')
+ * and `category` from `assessment_questions`. Filtering happens in Postgres
+ * (assessment_type + module + is_active), so a session never downloads other
+ * categories' questions. Never throws — on a Supabase error it returns the
+ * built-in bank for that category so the assessment keeps working.
  */
-export function buildSessionQuestions(mode, quotas = DEFAULT_MODULE_QUOTAS) {
-  const bank = QUESTION_BANKS[mode] || QUESTION_BANKS.pre;
-  return pickSessionQuestions(bank, quotas);
-}
-
-export const ASSESSMENT_TYPE_BY_MODE = { pre: 'pre-assessment', post: 'post-assessment' };
-
-/**
- * Fetches the active, admin-managed question pool for `mode` ('pre' |
- * 'post') from the `assessment_questions` table. Never throws — returns an
- * empty array if Supabase isn't configured or the query fails, so callers
- * (see src/pages/Assessment.jsx) can fall back to the static QUESTION_BANKS
- * bank above and the assessment keeps working regardless of DB state.
- */
-export async function fetchQuestionPool(mode) {
-  if (!supabase) return [];
+export async function fetchCategoryQuestions(mode, category) {
+  if (!supabase) return staticQuestions(mode, category);
   try {
     const { data, error } = await supabase
       .from('assessment_questions')
-      .select('id, module, category, question, options, correct_index, is_active')
-      .eq('assessment_type', ASSESSMENT_TYPE_BY_MODE[mode] || mode);
+      .select('id, module, category, question, options, correct_index')
+      .eq('assessment_type', ASSESSMENT_TYPE_BY_MODE[mode] || mode)
+      .eq('module', category)
+      .eq('is_active', true);
     if (error) throw error;
-    return (data || [])
-      .filter((q) => q.is_active ?? true)
-      .map((q) => ({
-        id: q.id,
-        module: q.module,
-        category: q.category || q.module,
-        question: q.question,
-        options: q.options,
-        correctIndex: q.correct_index,
-      }));
+    return (data || []).map((q) => ({
+      id: q.id,
+      module: q.module,
+      category: q.category || q.module,
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correct_index,
+    }));
   } catch (err) {
-    console.error('Failed to fetch assessment question pool, falling back to built-in questions:', err.message);
-    return [];
+    console.error('Failed to fetch assessment questions, falling back to built-in questions:', err.message);
+    return staticQuestions(mode, category);
+  }
+}
+
+/**
+ * How many active questions exist per category for `mode`:
+ * `{ [categoryId]: count }`. Drives the category picker (a category with no
+ * questions is shown as unavailable). Never throws; falls back to counting
+ * the built-in bank on error.
+ */
+export async function fetchCategoryAvailability(mode) {
+  const counts = Object.fromEntries(CATEGORY_IDS.map((id) => [id, 0]));
+  const fromStatic = () => {
+    (QUESTION_BANKS[mode] || QUESTION_BANKS.pre).forEach((q) => { if (q.module in counts) counts[q.module] += 1; });
+    return counts;
+  };
+  if (!supabase) return fromStatic();
+  try {
+    const { data, error } = await supabase
+      .from('assessment_questions')
+      .select('module')
+      .eq('assessment_type', ASSESSMENT_TYPE_BY_MODE[mode] || mode)
+      .eq('is_active', true);
+    if (error) throw error;
+    (data || []).forEach((q) => { if (q.module in counts) counts[q.module] += 1; });
+    return counts;
+  } catch (err) {
+    console.error('Failed to fetch question availability, falling back to built-in counts:', err.message);
+    return fromStatic();
   }
 }

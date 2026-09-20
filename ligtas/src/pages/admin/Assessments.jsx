@@ -8,6 +8,7 @@ import { useConfirm } from '../../hooks/useConfirm';
 import { useToast } from '../../hooks/useToast';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
+import { ASSESSMENT_CATEGORIES, getCategory } from '../../lib/assessmentCategories';
 import { Search, Eye, Trash2, Loader2, ClipboardList, HelpCircle } from 'lucide-react';
 
 const TYPE_OPTIONS = [
@@ -15,7 +16,6 @@ const TYPE_OPTIONS = [
   { value: 'pre-assessment', label: 'Pre-Assessment' },
   { value: 'post-assessment', label: 'Post-Assessment' },
 ];
-const MODULE_OPTIONS = ['all', 'Earthquake', 'Typhoon', 'Flood', 'General'];
 const ADMIN_TABS = [
   { key: 'results', label: 'Results', icon: ClipboardList },
   { key: 'questions', label: 'Question Bank', icon: HelpCircle },
@@ -27,7 +27,7 @@ export default function Assessments() {
   const { showToast, toastElement } = useToast();
   const [adminTab, setAdminTab] = useState('results');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [moduleFilter, setModuleFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedRow, setSelectedRow] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
@@ -36,15 +36,16 @@ export default function Assessments() {
     const needle = search.trim().toLowerCase();
     return rows.filter((r) => {
       if (typeFilter !== 'all' && r.assessment_type !== typeFilter) return false;
-      if (moduleFilter !== 'all' && r.disaster_module !== moduleFilter) return false;
+      if (categoryFilter !== 'all' && r.disaster_module !== categoryFilter) return false;
       if (needle && !r.identifier?.toLowerCase().includes(needle)) return false;
       return true;
     });
-  }, [rows, typeFilter, moduleFilter, search]);
+  }, [rows, typeFilter, categoryFilter, search]);
 
   // Rows belonging to the same submission as `row` (same participant, same
-  // assessment sitting, same insert). See the migration's note on why all
-  // module rows from one submit share an identical created_at.
+  // assessment sitting, same insert). New submissions are one row per attempt;
+  // older ones were split into one row per module sharing an identical
+  // created_at, so this can return several rows for legacy data.
   function siblingsFor(row) {
     return rows.filter(
       (r) => r.identifier === row.identifier && r.assessment_type === row.assessment_type && r.created_at === row.created_at
@@ -138,12 +139,13 @@ export default function Assessments() {
             ))}
           </div>
           <select
-            value={moduleFilter}
-            onChange={(e) => setModuleFilter(e.target.value)}
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
             className="px-4 py-2.5 bg-slate-100 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 outline-none cursor-pointer"
           >
-            {MODULE_OPTIONS.map((m) => (
-              <option key={m} value={m}>{m === 'all' ? 'All Modules' : m}</option>
+            <option value="all">All Categories</option>
+            {ASSESSMENT_CATEGORIES.map((c) => (
+              <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
             ))}
           </select>
           <div className="relative flex-1 min-w-[200px]">
@@ -177,7 +179,7 @@ export default function Assessments() {
                   <tr className="border-b border-slate-100 text-left">
                     <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Participant</th>
                     <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Type</th>
-                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Module</th>
+                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Category</th>
                     <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Score</th>
                     <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Confidence</th>
                     <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Submitted</th>
@@ -199,7 +201,7 @@ export default function Assessments() {
                             {row.assessment_type === 'pre-assessment' ? 'Pre' : 'Post'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-bold text-slate-600 whitespace-nowrap">{row.disaster_module}</td>
+                        <td className="px-6 py-4 font-bold text-slate-600 whitespace-nowrap">{getCategory(row.disaster_module).label}</td>
                         <td className="px-6 py-4 font-black text-slate-800 whitespace-nowrap">
                           {row.score}/{row.total_questions} <span className="text-slate-400 font-bold">({percent}%)</span>
                         </td>
