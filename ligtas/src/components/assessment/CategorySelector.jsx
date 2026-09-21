@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Loader2, ArrowRight, Lock } from 'lucide-react';
 import {
-  ASSESSMENT_CATEGORIES,
+  GAME_CATEGORIES,
   ENABLED_CATEGORIES_KEY,
   DEFAULT_ENABLED_CATEGORIES,
   QUESTIONS_PER_ATTEMPT_KEY,
@@ -13,29 +13,34 @@ import { fetchCategoryAvailability } from '../../lib/assessmentQuestionBank';
 import { useSiteSetting } from '../../hooks/useSiteSetting';
 
 /**
- * Category selection step. Shows one card per disaster category that the
+ * Module selection for the start of a session (Pre-Test -> Game Code ->
+ * Post-Test). Shows one card per module that has a Unity scenario and that the
  * admin has enabled (Admin > Assessment > Question Bank > Category Settings).
- * A category with no active questions for the chosen `type` is still listed
- * but locked, so players can tell it exists but isn't ready yet.
  *
- * Fetches its own inputs so the parent only has to pass `type`:
+ * A module is locked ("Not ready yet") unless it has active questions for BOTH
+ * the Pre-Test and the Post-Test — otherwise a player could finish the game
+ * and then find there is no Post-Test to take.
+ *
+ * Fetches its own inputs:
  *   - `site_settings.assessment_enabled_categories`    -> which cards to show
  *   - `site_settings.assessment_questions_per_attempt` -> "N questions" label
- *   - active question counts for `type`                -> locked vs. selectable
+ *   - active question counts for Pre and Post          -> locked vs. selectable
  */
-export default function CategorySelector({ type, onSelect }) {
+export default function CategorySelector({ onSelect }) {
   const { value: enabledMap, loading: enabledLoading } = useSiteSetting(ENABLED_CATEGORIES_KEY, DEFAULT_ENABLED_CATEGORIES);
   const { value: perAttemptSetting } = useSiteSetting(QUESTIONS_PER_ATTEMPT_KEY, DEFAULT_QUESTIONS_PER_ATTEMPT);
-  const [availability, setAvailability] = useState(null); // null while loading
+  const [availability, setAvailability] = useState(null); // { pre: counts, post: counts }; null while loading
 
   useEffect(() => {
     let cancelled = false;
-    fetchCategoryAvailability(type).then((counts) => { if (!cancelled) setAvailability(counts); });
+    Promise.all([fetchCategoryAvailability('pre'), fetchCategoryAvailability('post')]).then(([pre, post]) => {
+      if (!cancelled) setAvailability({ pre, post });
+    });
     return () => { cancelled = true; };
-  }, [type]);
+  }, []);
 
   const perAttempt = normalizeQuestionCount(perAttemptSetting);
-  const visibleCategories = ASSESSMENT_CATEGORIES.filter((c) => isCategoryEnabled(enabledMap, c.id));
+  const visibleCategories = GAME_CATEGORIES.filter((c) => isCategoryEnabled(enabledMap, c.id));
 
   if (enabledLoading || availability === null) {
     return (
@@ -58,11 +63,11 @@ export default function CategorySelector({ type, onSelect }) {
   return (
     <div>
       <p className="text-center text-slate-500 text-sm font-bold mb-8">
-        Pick the disaster category you want to test your knowledge on.
+        Pick the disaster module you want to train on. You'll play the matching scenario in the LIG+AS mobile app.
       </p>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {visibleCategories.map((category) => {
-          const available = availability[category.id] || 0;
+          const available = Math.min(availability.pre[category.id] || 0, availability.post[category.id] || 0);
           const locked = available === 0;
           const questionCount = Math.min(available, perAttempt);
           return (
@@ -82,7 +87,7 @@ export default function CategorySelector({ type, onSelect }) {
               <p className={`text-sm font-medium leading-relaxed mb-5 ${locked ? 'text-slate-300' : 'text-slate-500'}`}>{category.blurb}</p>
               {locked ? (
                 <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-400 uppercase tracking-wider">
-                  <Lock size={13} /> No questions yet
+                  <Lock size={13} /> Not ready yet
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 text-xs font-black text-orange-500 uppercase tracking-wider group-hover:gap-3 transition-all">

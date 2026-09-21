@@ -3,13 +3,14 @@ import AdminLayout from '../../components/layout/AdminLayout';
 import AssessmentAnalytics from '../../components/admin/AssessmentAnalytics';
 import AssessmentDetailModal from '../../components/admin/AssessmentDetailModal';
 import AssessmentQuestionManager from '../../components/admin/AssessmentQuestionManager';
+import GuestSessionTracker from '../../components/admin/GuestSessionTracker';
 import { useAssessmentResults } from '../../hooks/useAssessmentResults';
 import { useConfirm } from '../../hooks/useConfirm';
 import { useToast } from '../../hooks/useToast';
 import { supabase } from '../../lib/supabase';
 import { logSystemEvent } from '../../lib/systemLogs';
 import { ASSESSMENT_CATEGORIES, getCategory } from '../../lib/assessmentCategories';
-import { Search, Eye, Trash2, Loader2, ClipboardList, HelpCircle } from 'lucide-react';
+import { Search, Eye, Trash2, Loader2, ClipboardList, HelpCircle, Users } from 'lucide-react';
 
 const TYPE_OPTIONS = [
   { value: 'all', label: 'All Types' },
@@ -19,6 +20,7 @@ const TYPE_OPTIONS = [
 const ADMIN_TABS = [
   { key: 'results', label: 'Results', icon: ClipboardList },
   { key: 'questions', label: 'Question Bank', icon: HelpCircle },
+  { key: 'guests', label: 'Guest Sessions', icon: Users },
 ];
 
 export default function Assessments() {
@@ -109,6 +111,8 @@ export default function Assessments() {
 
         {adminTab === 'questions' ? (
           <AssessmentQuestionManager />
+        ) : adminTab === 'guests' ? (
+          <GuestSessionTracker />
         ) : (
           <>
         {error && (

@@ -494,8 +494,8 @@ function CategorySettings({ questions, showToast }) {
         <h3 className="font-black text-slate-800 text-lg">Category Settings</h3>
       </div>
       <p className="text-sm text-slate-400 mb-6">
-        Choose which disaster categories players can pick on the public Assessment page. Each attempt draws random questions
-        from one category, with answer choices shuffled every time.
+        Choose which modules players can pick when they start a Pre-Test. Each attempt draws random questions from one module,
+        with answer choices shuffled every time. A module needs active Pre AND Post questions before players can start it.
       </p>
 
       <div className="divide-y divide-slate-50 mb-6">
@@ -516,7 +516,11 @@ function CategorySettings({ questions, showToast }) {
                 </div>
               </div>
 
-              {enabled && short && (
+              {!category.hasGameScenario && (
+                <p className="text-xs font-bold text-slate-400 max-w-xs">No game scenario, so it is not part of the Game Code flow.</p>
+              )}
+
+              {category.hasGameScenario && enabled && short && (
                 <p className="flex items-center gap-1.5 text-xs font-bold text-amber-600">
                   <AlertTriangle size={13} className="flex-shrink-0" />
                   {missing.length > 0
@@ -525,26 +529,28 @@ function CategorySettings({ questions, showToast }) {
                 </p>
               )}
 
-              <button
-                type="button"
-                role="switch"
-                aria-checked={enabled}
-                aria-label={`${enabled ? 'Hide' : 'Show'} ${category.label} on the public site`}
-                onClick={() => toggleCategory(category)}
-                disabled={enabledLoading || togglingId === category.id}
-                className="flex items-center gap-3 disabled:opacity-50"
-              >
-                <span className={`text-xs font-black uppercase tracking-wider w-14 text-right ${enabled ? 'text-green-600' : 'text-slate-400'}`}>
-                  {enabled ? 'Visible' : 'Hidden'}
-                </span>
-                <span className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors ${enabled ? 'bg-green-500' : 'bg-slate-200'}`}>
-                  {togglingId === category.id ? (
-                    <Loader2 size={14} className="animate-spin absolute top-1 left-1/2 -translate-x-1/2 text-white" />
-                  ) : (
-                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${enabled ? 'left-[1.375rem]' : 'left-0.5'}`} />
-                  )}
-                </span>
-              </button>
+              {category.hasGameScenario && (
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={enabled}
+                  aria-label={`${enabled ? 'Hide' : 'Show'} ${category.label} on the public site`}
+                  onClick={() => toggleCategory(category)}
+                  disabled={enabledLoading || togglingId === category.id}
+                  className="flex items-center gap-3 disabled:opacity-50"
+                >
+                  <span className={`text-xs font-black uppercase tracking-wider w-14 text-right ${enabled ? 'text-green-600' : 'text-slate-400'}`}>
+                    {enabled ? 'Visible' : 'Hidden'}
+                  </span>
+                  <span className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full transition-colors ${enabled ? 'bg-green-500' : 'bg-slate-200'}`}>
+                    {togglingId === category.id ? (
+                      <Loader2 size={14} className="animate-spin absolute top-1 left-1/2 -translate-x-1/2 text-white" />
+                    ) : (
+                      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${enabled ? 'left-[1.375rem]' : 'left-0.5'}`} />
+                    )}
+                  </span>
+                </button>
+              )}
             </div>
           );
         })}

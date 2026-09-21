@@ -14,6 +14,7 @@ export const ASSESSMENT_CATEGORIES = [
     emoji: '🏚️',
     blurb: 'Drop, Cover, and Hold On — staying safe before, during, and after shaking.',
     situation: 'an earthquake',
+    hasGameScenario: true,
   },
   {
     id: 'Typhoon',
@@ -21,6 +22,7 @@ export const ASSESSMENT_CATEGORIES = [
     emoji: '🌀',
     blurb: 'Storm signals, preparation, and staying safe when a typhoon makes landfall.',
     situation: 'a typhoon',
+    hasGameScenario: true,
   },
   {
     id: 'Landslide',
@@ -28,6 +30,7 @@ export const ASSESSMENT_CATEGORIES = [
     emoji: '⛰️',
     blurb: 'Warning signs on unstable slopes, moving to stable ground, and safe evacuation routes.',
     situation: 'a landslide',
+    hasGameScenario: true,
   },
   {
     id: 'Tsunami',
@@ -35,6 +38,7 @@ export const ASSESSMENT_CATEGORIES = [
     emoji: '🌊',
     blurb: 'Natural warning signs, reaching high ground fast, and staying away from the coast.',
     situation: 'a tsunami',
+    hasGameScenario: true,
   },
   {
     id: 'Volcanic Eruption',
@@ -42,6 +46,7 @@ export const ASSESSMENT_CATEGORIES = [
     emoji: '🌋',
     blurb: 'Ashfall protection, evacuation timing, and keeping clear of volcanic hazard zones.',
     situation: 'a volcanic eruption',
+    hasGameScenario: true,
   },
   {
     id: 'General',
@@ -49,10 +54,18 @@ export const ASSESSMENT_CATEGORIES = [
     emoji: '🎒',
     blurb: 'Go-bags, family plans, and habits that apply to every kind of disaster.',
     situation: 'a disaster (earthquake, typhoon, landslide, tsunami, or volcanic eruption)',
+    hasGameScenario: false, // no Unity scenario, so it cannot take part in the Game Code flow
   },
 ];
 
 export const CATEGORY_IDS = ASSESSMENT_CATEGORIES.map((c) => c.id);
+
+/**
+ * Categories that have a matching Unity scenario. Only these can start the
+ * Pre-Test -> Game Code -> Post-Test flow; the list must match the modules
+ * accepted by supabase/migrations/20260922_game_code_sessions.sql.
+ */
+export const GAME_CATEGORIES = ASSESSMENT_CATEGORIES.filter((c) => c.hasGameScenario);
 
 /** Category config for a stored id, or a neutral fallback for unknown/legacy values. */
 export function getCategory(id) {
@@ -63,6 +76,7 @@ export function getCategory(id) {
       emoji: '📋',
       blurb: '',
       situation: 'a disaster',
+      hasGameScenario: false,
     }
   );
 }

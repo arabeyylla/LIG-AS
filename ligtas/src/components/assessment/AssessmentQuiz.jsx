@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import { ClipboardCheck, Loader2, AlertCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { logSystemEvent } from '../../lib/systemLogs';
-import { ASSESSMENT_TYPE_BY_MODE } from '../../lib/assessmentQuestionBank';
 import { CONFIDENCE_LABELS, confidenceQuestion } from '../../lib/assessmentScoring';
+import { sessionErrorMessage } from '../../lib/assessmentSessions';
 
 /**
- * The question sequence for ONE category: participant id, the randomized
- * questions, the confidence (Likert) self-rating, and submit.
+ * The question sequence for ONE category: (Pre-Test only) participant id, the
+ * randomized questions, the confidence (Likert) self-rating, and submit.
  *
- * Owns the per-attempt state (answers, confidence, submit status). The parent
- * renders it with `key={attemptId}` so every new attempt starts clean.
+ * Owns the per-attempt state (answers, confidence, submit status); the parent
+ * renders it with `key={attemptId}` so every new attempt starts clean. It does
+ * no networking itself: on submit it scores the answers and awaits
+ * `onSubmit({ identifier, score, total, answers, confidence })`, which must
+ * resolve the RPC result `{ ok, error?, ... }` (Pre-Test and Post-Test use
+ * different RPCs — see lib/assessmentSessions.js). On `ok` it calls
+ * `onSubmitted(result)`; otherwise it shows the error and lets the player retry.
  *
- * On submit it inserts exactly ONE row into `assessment_results` with
- * `disaster_module` = the category, which is what the admin Analytics tab
- * groups by to compute per-category Pre vs. Post averages and Knowledge Gain.
- * On success it calls `onSubmitted(payload)`; the parent handles local
- * caching and navigation.
+ * The Post-Test has no participant field (`showParticipantField` false): the
+ * database already knows who the session belongs to.
  */
 export default function AssessmentQuiz({
   type,
@@ -24,9 +24,10 @@ export default function AssessmentQuiz({
   questions,
   participantId,
   onParticipantIdChange,
+  showParticipantField = true,
   consentGiven,
+  onSubmit,
   onSubmitted,
-  onToast,
 }) {
   const [answers, setAnswers] = useState({}); // { [questionId]: optionIndex }
   const [confidence, setConfidence] = useState(0);
@@ -40,55 +41,34 @@ export default function AssessmentQuiz({
   async function handleSubmit(e) {
     e.preventDefault();
     const trimmedId = participantId.trim();
-    if (!trimmedId) return setError('Please enter your Student ID, email, or full name.');
+    if (showParticipantField && !trimmedId) return setError('Please enter your Student ID, email, or full name.');
     if (!consentGiven) return setError('Please agree to the data privacy notice before submitting.');
     if (!allAnswered) return setError('Please answer every question before submitting.');
     if (!confidence) return setError('Please rate your confidence level.');
-    if (!supabase) return setError('Backend not configured.');
 
     setSubmitting(true);
     setError(null);
 
-    const assessmentType = ASSESSMENT_TYPE_BY_MODE[type];
     const isCorrect = (q) => answers[q.id] === q.correctIndex;
-    const score = questions.filter(isCorrect).length;
+    const result = await onSubmit({
+      identifier: trimmedId,
+      score: questions.filter(isCorrect).length,
+      total: questions.length,
+      confidence,
+      answers: questions.map((q) => ({
+        questionId: q.id,
+        question: q.question,
+        selectedIndex: answers[q.id],
+        selectedText: q.options[answers[q.id]],
+        correctIndex: q.correctIndex,
+        isCorrect: isCorrect(q),
+      })),
+    });
 
-    try {
-      // --- Supabase insert ---------------------------------------------------
-      // One row per attempt. `disaster_module` holds the category id, so
-      // per-category analytics is a GROUP BY over (disaster_module,
-      // assessment_type) — see components/admin/AssessmentAnalytics.jsx.
-      const { error: insertError } = await supabase.from('assessment_results').insert({
-        identifier: trimmedId,
-        assessment_type: assessmentType,
-        disaster_module: category.id,
-        score,
-        total_questions: questions.length,
-        answers_payload: questions.map((q) => ({
-          questionId: q.id,
-          question: q.question,
-          selectedIndex: answers[q.id],
-          selectedText: q.options[answers[q.id]],
-          correctIndex: q.correctIndex,
-          isCorrect: isCorrect(q),
-        })),
-        likert_preparedness_rating: confidence,
-      });
-      if (insertError) throw insertError;
-      // ------------------------------------------------------------------------
-
-      logSystemEvent(
-        'assessment.submitted',
-        { type: assessmentType, category: category.id, score, total: questions.length },
-        'assessment_results',
-        trimmedId
-      );
-      onToast('success', 'Assessment submitted successfully!');
-      onSubmitted({ type, category: category.id, score, total: questions.length, confidence, submittedAt: new Date().toISOString() });
-    } catch (err) {
-      console.error('Failed to submit assessment:', err.message);
-      setError('Failed to submit your assessment. Please try again.');
-      onToast('error', 'Failed to submit your assessment. Please try again.');
+    if (result.ok) {
+      onSubmitted(result); // parent navigates away and unmounts this form
+    } else {
+      setError(sessionErrorMessage(result.error));
       setSubmitting(false);
     }
   }
@@ -102,22 +82,25 @@ export default function AssessmentQuiz({
         </div>
       )}
 
-      {/* Participant identification */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
-        <label htmlFor="participant-id" className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5">
-          Student ID, Email, or Full Name *
-        </label>
-        <p className="text-gray-400 text-xs font-bold mb-3">Used to link your Pre- and Post-Assessment results together.</p>
-        <input
-          id="participant-id"
-          type="text"
-          value={participantId}
-          onChange={(e) => onParticipantIdChange(e.target.value)}
-          placeholder="e.g. 2023-00123 or juan.delacruz@email.com"
-          className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-orange-500 transition-all"
-          required
-        />
-      </div>
+      {/* Participant identification (Pre-Test only) */}
+      {showParticipantField && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+          <label htmlFor="participant-id" className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5">
+            Student ID, Email, or Full Name *
+          </label>
+          <p className="text-gray-400 text-xs font-bold mb-3">Linked to your Game Code so your Pre-Test, game, and Post-Test results stay together.</p>
+          <input
+            id="participant-id"
+            type="text"
+            value={participantId}
+            onChange={(e) => onParticipantIdChange(e.target.value)}
+            placeholder="e.g. 2023-00123 or juan.delacruz@email.com"
+            maxLength={200}
+            className="w-full p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-orange-500 transition-all"
+            required
+          />
+        </div>
+      )}
 
       {/* Progress */}
       <div className="flex items-center justify-between px-1">

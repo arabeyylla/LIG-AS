@@ -1,50 +1,13 @@
 // ---------------------------------------------------------------------------
-// Local (per-browser) results cache.
-// RLS on `assessment_results` only grants admins SELECT access (see the SQL
-// migrations), so the public page cannot query past submissions back from
-// Supabase for an anonymous player. Instead, each successful submission is
-// mirrored into sessionStorage so the "My Results" view can show a
-// same-device Pre vs. Post comparison per category. Aggregate results across
-// all participants belong on the authenticated admin page.
-//
-// Shape: { participantId, results: { [categoryId]: { pre: payload|null, post: payload|null } } }
-// The key is versioned (`_v2`) because the previous shape stored a single
-// pre/post pair for the whole assessment, not one per category.
+// Small browser-side conveniences for the Assessment page. Everything
+// important (scores, sessions, game results) lives in Supabase and is looked
+// up by Game Code — this file only remembers two things so a refresh is less
+// painful. Every accessor is wrapped in try/catch because storage can be
+// blocked (private windows, strict privacy settings).
 // ---------------------------------------------------------------------------
 
-const RESULTS_KEY = 'ligtas_assessment_results_v2';
-const CONSENT_KEY = 'ligtas_assessment_consent';
-
-const EMPTY = () => ({ participantId: '', results: {} });
-
-export function loadLocalResults() {
-  try {
-    const raw = sessionStorage.getItem(RESULTS_KEY);
-    return raw ? JSON.parse(raw) : EMPTY();
-  } catch {
-    return EMPTY();
-  }
-}
-
-/**
- * Records `payload` ({ type: 'pre'|'post', score, total, confidence,
- * submittedAt }) for `category`. A different participant id starts a fresh
- * cache so two people sharing a device never see each other's results.
- * Returns the updated cache, or null if storage is unavailable.
- */
-export function saveLocalResult(participantId, category, payload) {
-  try {
-    const current = loadLocalResults();
-    const next = current.participantId === participantId ? current : { participantId, results: {} };
-    next.participantId = participantId;
-    next.results[category] = { pre: null, post: null, ...next.results[category], [payload.type]: payload };
-    sessionStorage.setItem(RESULTS_KEY, JSON.stringify(next));
-    return next;
-  } catch (err) {
-    console.warn('Could not persist local assessment result:', err.message);
-    return null;
-  }
-}
+const CONSENT_KEY = 'ligtas_assessment_consent';   // sessionStorage: privacy consent for this tab session
+const GAME_CODE_KEY = 'ligtas_active_game_code';   // localStorage: last Game Code, survives closing the tab
 
 export function loadStoredConsent() {
   try {
@@ -59,5 +22,22 @@ export function saveStoredConsent(value) {
     sessionStorage.setItem(CONSENT_KEY, String(value));
   } catch {
     /* storage unavailable — consent just won't persist across modal openings */
+  }
+}
+
+/** The last Game Code this browser used, so "Resume / Enter Code" can pre-fill it. */
+export function loadSavedGameCode() {
+  try {
+    return localStorage.getItem(GAME_CODE_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function saveGameCode(code) {
+  try {
+    localStorage.setItem(GAME_CODE_KEY, code);
+  } catch {
+    /* storage unavailable — the player can still type the code again */
   }
 }

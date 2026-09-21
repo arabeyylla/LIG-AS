@@ -3,3 +3,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Printing (e.g. the Assessment certificate): hide the site chrome. The pages
+   themselves mark what else to hide with Tailwind's `print:hidden`. The navbar
+   is `sticky`, so it is hidden here rather than by wrapping it in another element. */
+@media print {
+  nav,
+  footer {
+    display: none !important;
+  }
+}
