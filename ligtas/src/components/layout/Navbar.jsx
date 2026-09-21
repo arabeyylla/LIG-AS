@@ -11,6 +11,7 @@ export default function Navbar() {
     { to: "/team", label: "Team" },
     { to: "/faq", label: "FAQ" },
     { to: "/assessment", label: "Assessment" },
+    { to: "/privacy", label: "Privacy" },
   ];
 
   return (

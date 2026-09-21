@@ -20,6 +20,7 @@ export default function Footer() {
               <Link to="/how-to-play" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">How to Play</Link>
               <Link to="/team" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">Team</Link>
               <Link to="/faq" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">FAQ</Link>
+              <Link to="/privacy" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">Privacy Policy</Link>
               <Link to="/download" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">Download</Link>
             </div>
           </div>
@@ -32,7 +33,10 @@ export default function Footer() {
         </div>
         <div className="border-t border-gray-300 pt-6 flex flex-col md:flex-row justify-between items-center gap-2">
           <p className="text-gray-500 text-sm lg:text-base">&copy; 2026 LIG+AS. All rights reserved.</p>
-          <Link to="/admin/login" className="text-xs lg:text-sm text-gray-400 hover:text-orange-500 transition-colors">Admin Panel</Link>
+          <div className="flex items-center gap-4 text-xs lg:text-sm text-gray-400">
+            <Link to="/privacy" className="hover:text-orange-500 transition-colors">Privacy Policy</Link>
+            <Link to="/admin/login" className="hover:text-orange-500 transition-colors">Admin Panel</Link>
+          </div>
         </div>
       </div>
     </footer>

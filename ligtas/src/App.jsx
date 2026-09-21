@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 // Public Pages
 import Landing from "./pages/Landing";
@@ -8,6 +9,7 @@ import Team from "./pages/Team";
 import FAQ from "./pages/FAQ";
 import Download from "./pages/Download";
 import Assessment from "./pages/Assessment";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -21,9 +23,19 @@ import SystemLogs from "./pages/admin/SystemLogs";
 import AdminRoute from "./components/AdminRoute";
 import AdminPageError from './components/AdminPageError';
 
+// Reset scroll to the top whenever the route changes (skips in-page #anchors).
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) window.scrollTo(0, 0);
+  }, [pathname, hash]);
+  return null;
+}
+
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<Landing />} />
@@ -33,6 +45,8 @@ function App() {
         <Route path="/faq" element={<FAQ />} />
         <Route path="/assessment" element={<Assessment />} />
         <Route path="/download" element={<Download />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/credits" element={<Navigate to="/team" replace />} />
 
         {/* Admin Routes */}
         <Route path="/admin/login" element={<AdminLogin />} />

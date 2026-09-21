@@ -57,7 +57,7 @@ const faqData = [
       },
       {
         q: "How many levels are there?",
-        a: "LIG+AS features multiple stages across different disaster scenarios. Each stage increases in difficulty and introduces new challenges and survival protocols to master."
+        a: "LIG+AS features 5 playable disaster modules in LIG+AS (Earthquake, Typhoon, Volcanic Ashfall, Tsunami, Landslide, and Flood). Players can practice preparedness actions and response procedures across all 6 hazard types in both Free Play and Assessment Mode."
       },
       {
         q: "Does the game require an internet connection?",

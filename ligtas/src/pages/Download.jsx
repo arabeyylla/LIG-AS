@@ -5,9 +5,13 @@ import { useState, useEffect } from 'react';
 import { 
   Download as DownloadIcon, Smartphone, HardDrive, 
   Cpu, Shield, CheckCircle, AlertTriangle,
-  ChevronRight, ExternalLink
+  ChevronRight, ExternalLink, Play
 } from "lucide-react";
 import { trackDownload, trackPageVisit } from '../lib/analytics';
+
+// Set these when the listing / APK are live. Empty string = "coming soon" / not yet available.
+const PLAY_STORE_URL = "";
+const APK_URL = "";
 
 export default function Download() {
   const [downloading, setDownloading] = useState(false);
@@ -21,14 +25,10 @@ export default function Download() {
     // Track the download
     await trackDownload();
     
-    // Trigger actual download (replace with real APK URL when available)
-    // For now, simulate a brief delay
     setTimeout(() => {
       setDownloading(false);
       setDownloaded(true);
-      
-      // Uncomment and replace with actual APK URL when ready:
-      // window.open('https://your-storage-url.com/ligtas.apk', '_blank');
+      if (APK_URL) window.open(APK_URL, '_blank');
     }, 1000);
   };
 
@@ -49,7 +49,7 @@ export default function Download() {
             Download <span className="text-orange-500">LIG+AS</span>
           </h1>
           <p className="mt-6 text-base sm:text-xl lg:text-2xl text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed">
-            Get the APK and start training for disaster survival on your Android device.
+            Get LIG+AS on Google Play or download the APK directly, and start training for disaster survival on your Android device.
           </p>
         </div>
       </section>
@@ -66,7 +66,7 @@ export default function Download() {
                   <Smartphone size={36} />
                 </div>
                 <h2 className="text-2xl font-black text-slate-900 mb-2">LIG+AS for Android</h2>
-                <p className="text-gray-500 text-sm">Version 1.0 &bull; APK File</p>
+                <p className="text-gray-500 text-sm">Version 1.0 &bull; Android</p>
               </div>
 
               <div className="space-y-4 mb-8">
@@ -82,6 +82,31 @@ export default function Download() {
                   <span className="text-sm text-gray-500">Last Updated</span>
                   <span className="text-sm font-bold text-slate-800">2026</span>
                 </div>
+              </div>
+
+              {/* Google Play (primary) */}
+              {PLAY_STORE_URL ? (
+                <a
+                  href={PLAY_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackDownload()}
+                  className="w-full py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-3 bg-slate-900 hover:bg-slate-800 text-white shadow-lg transition-all hover:-translate-y-0.5"
+                >
+                  <Play size={22} fill="currentColor" />
+                  Get it on Google Play
+                </a>
+              ) : (
+                <div className="w-full py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-3 bg-slate-200 text-slate-500 cursor-not-allowed">
+                  <Play size={22} />
+                  Coming soon to Google Play
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 my-5 text-xs font-bold uppercase tracking-widest text-gray-400">
+                <span className="flex-1 h-px bg-slate-200"></span>
+                or download directly
+                <span className="flex-1 h-px bg-slate-200"></span>
               </div>
 
               <button
@@ -108,7 +133,7 @@ export default function Download() {
                 ) : (
                   <>
                     <DownloadIcon size={24} />
-                    Download APK
+                    Download APK (Direct)
                   </>
                 )}
               </button>
@@ -173,6 +198,9 @@ export default function Download() {
                   <HardDrive className="text-orange-500" size={24} />
                   Installation Guide
                 </h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  Installing from Google Play? Just open the store listing and tap <span className="font-bold">Install</span>. The steps below are for the direct APK download.
+                </p>
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 bg-orange-500 text-white rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-black">1</div>
@@ -212,7 +240,7 @@ export default function Download() {
                   <div>
                     <h4 className="font-bold text-slate-800 text-sm mb-1">Safe to Install</h4>
                     <p className="text-gray-600 text-sm leading-relaxed">
-                      LIG+AS is developed by our team and is completely safe. The "Unknown Sources" warning is standard for apps not from the Play Store. The game does not collect personal data and works entirely offline.
+                      LIG+AS is developed by Team Kizuna. The "Unknown Sources" warning is standard for APKs installed outside the Play Store, so we recommend Google Play when it is available. Free Play stays on your device; Assessment Mode sends gameplay results to our backend. See our <Link to="/privacy" className="text-orange-600 font-bold hover:underline">Privacy Policy</Link> for details.
                     </p>
                   </div>
                 </div>

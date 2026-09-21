@@ -2,31 +2,34 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
-import { Code, Palette, Gamepad2, GraduationCap } from "lucide-react";
+import { Code, Palette, Gamepad2, GraduationCap, Heart, Box, Globe, Server } from "lucide-react";
 import { trackPageVisit } from '../lib/analytics';
 
 const teamMembers = [
   {
     name: "Rhozeth Carl R. Muyot",
     role: "Project Manager / Developer",
-    description: "Oversees project direction, system architecture, and core game logic implementation.",
     icon: <Code size={24} />,
     color: "orange",
   },
   {
     name: "Arabela Raine T. Alfonso",
     role: "Developer",
-    description: "Designs game levels, creates low-poly 3D assets, and handles visual storytelling.",
     icon: <Palette size={24} />,
     color: "blue",
   },
   {
     name: "Jan Ryza S. Bacsal",
     role: "Developer",
-    description: "Builds the web platform, handles UI/UX design, and integrates backend services.",
     icon: <Gamepad2 size={24} />,
     color: "green",
   },
+];
+
+const technologies = [
+  { category: "Game Engine & Models", items: "Unity 3D & SketchUp", icon: <Box size={22} /> },
+  { category: "Frontend Web", items: "React, Vite, Tailwind CSS / Lucide Icons", icon: <Globe size={22} /> },
+  { category: "Backend & Database", items: "Supabase & PostgreSQL", icon: <Server size={22} /> },
 ];
 
 const colorMap = {
@@ -59,6 +62,9 @@ export default function Team() {
           <p className="mt-6 text-base sm:text-xl lg:text-2xl text-gray-400 max-w-2xl mx-auto font-medium leading-relaxed">
             The people behind LIG+AS — a dedicated team building disaster preparedness tools through game-based learning.
           </p>
+          <p className="mt-4 text-sm sm:text-lg text-gray-500 max-w-2xl mx-auto">
+            Learning in Gamified + Applied Simulation — developed by <span className="font-bold text-white">Team Kizuna</span>, National University Dasmariñas (BSIT)
+          </p>
         </div>
       </section>
 
@@ -70,7 +76,7 @@ export default function Team() {
             <p className="text-gray-500 mt-3 text-lg">Each member brings unique skills to make LIG+AS possible.</p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {teamMembers.map((member, index) => {
               const colors = colorMap[member.color];
               return (
@@ -81,8 +87,7 @@ export default function Team() {
                   </div>
                   
                   <h3 className="text-lg font-black text-slate-800 mb-1">{member.name}</h3>
-                  <p className={`text-xs font-bold uppercase tracking-wider ${colors.text} mb-4`}>{member.role}</p>
-                  <p className="text-gray-500 text-sm leading-relaxed">{member.description}</p>
+                  <p className={`text-xs font-bold uppercase tracking-wider ${colors.text}`}>{member.role}</p>
                 </div>
               );
             })}
@@ -152,6 +157,55 @@ export default function Team() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ADVISOR */}
+      <section className="py-16 sm:py-24 bg-white">
+        <div className="px-4 sm:px-8 max-w-5xl mx-auto">
+          <div className="bg-gray-50 p-8 sm:p-10 rounded-[2.5rem] border border-gray-100 shadow-sm text-center">
+            <div className="w-14 h-14 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center mx-auto mb-5">
+              <Heart size={26} />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tighter mb-6">
+              Advisers &amp; Reviewers
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-4 mb-6">
+              <div className="bg-white p-5 rounded-2xl border border-gray-100">
+                <p className="font-black text-slate-800">Mr. Jay-Arr C. Buhain</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-orange-600 mt-1">Capstone Adviser</p>
+              </div>
+              <div className="bg-white p-5 rounded-2xl border border-gray-100">
+                <p className="font-black text-slate-800">Mr. Elmer M. Aliño</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-orange-600 mt-1">Subject Adviser</p>
+              </div>
+            </div>
+            <p className="text-gray-600 leading-relaxed">
+              Special thanks to our advisers and the National University Dasmariñas Faculty for
+              project guidance and technical review.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* TECHNOLOGIES */}
+      <section className="py-16 sm:py-24 bg-gray-100">
+        <div className="px-4 sm:px-8 lg:px-[5%]">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black text-slate-900 tracking-tighter">Technologies &amp; Frameworks</h2>
+            <p className="text-gray-500 mt-3 text-lg">The tools used to build LIG+AS.</p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            {technologies.map((t) => (
+              <div key={t.category} className="p-6 rounded-3xl border border-gray-100 bg-white">
+                <div className="w-11 h-11 bg-slate-800 text-orange-400 rounded-xl flex items-center justify-center mb-4">
+                  {t.icon}
+                </div>
+                <h3 className="font-black text-slate-800 mb-1">{t.category}</h3>
+                <p className="text-gray-600 text-sm">{t.items}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

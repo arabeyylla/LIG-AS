@@ -7,7 +7,7 @@ import {
   Gamepad2, Shield, Target, Zap,
   ChevronRight, Globe, BookOpen, Heart
 } from "lucide-react";
-import Landingpage from "../assets/LIGTAS Landing.png";
+import Landingpage from "../assets/about-logo.png";
 import game from "../assets/game.png";
 import failed from "../assets/failed.png";
 import { trackPageVisit } from '../lib/analytics';
@@ -58,7 +58,7 @@ export default function About() {
             </div>
             <div className="relative">
               <div className="rounded-2xl lg:rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-gray-100">
-                <img src={Landingpage} alt="LIG+AS gameplay" className="w-full h-[250px] sm:h-[350px] lg:h-[450px] object-cover" />
+                <img src={Landingpage} alt="LIG+AS Disaster Simulation logo" className="w-full h-[250px] sm:h-[350px] lg:h-[450px] object-cover" />
               </div>
               <div className="absolute -bottom-4 -left-4 lg:-bottom-6 lg:-left-6 bg-orange-500 text-white p-4 lg:p-6 rounded-2xl shadow-xl">
                 <Gamepad2 size={28} />
