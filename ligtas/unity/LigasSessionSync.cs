@@ -4,7 +4,9 @@
 // Supabase RPC functions in supabase/migrations/20260922_game_code_sessions.sql.
 //
 //   1. Player types the Game Code shown on the web  ->  SubmitGameCode()
-//        POST /rest/v1/rpc/validate_game_code   { p_game_code }
+//        POST /rest/v1/rpc/validate_game_code   { p_game_code, p_guest_id }
+//        the session is linked to this device's guest id (the last device to enter
+//        the code wins, until a result has been uploaded).
 //        ok  -> the module (e.g. "Landslide") is returned, the session is saved
 //               to PlayerPrefs and the matching scenario scene is loaded.
 //
@@ -32,13 +34,13 @@
 //
 // USAGE
 //   // Code-entry screen (e.g. the button's onClick):
-//   LigasSessionSync.Instance.SubmitGameCode(inputField.text, result =>
+//   LigtasSessionSync.Instance.SubmitGameCode(inputField.text, result =>
 //   {
 //       if (!result.ok) errorLabel.text = result.message;   // scene loads itself on success
 //   });
 //
 //   // When the scenario ends:
-//   LigasSessionSync.Instance.CompleteScenario(new ScoreDetails
+//   LigtasSessionSync.Instance.CompleteScenario(new ScoreDetails
 //   {
 //       gameScore = 850, completionTimeSeconds = 312,
 //       hazardsAvoided = 7, hazardsTotal = 9,
@@ -106,9 +108,9 @@ namespace Ligtas.Sync
         public string sceneName;  // e.g. "Scenario_Volcano"
     }
 
-    public class LigasSessionSync : MonoBehaviour
+    public class LigtasSessionSync : MonoBehaviour
     {
-        public static LigasSessionSync Instance { get; private set; }
+        public static LigtasSessionSync Instance { get; private set; }
 
         [Header("Supabase (public anon key only)")]
         [SerializeField] private string supabaseUrl = "https://YOUR-PROJECT.supabase.co";
@@ -147,7 +149,12 @@ namespace Ligtas.Sync
         }
 
         // Request bodies. Field names must equal the SQL function parameter names.
-        [Serializable] private class ValidateRequest { public string p_game_code; }
+        [Serializable]
+        private class ValidateRequest
+        {
+            public string p_game_code;
+            public string p_guest_id;
+        }
 
         [Serializable]
         private class SubmitResultRequest
@@ -285,7 +292,7 @@ namespace Ligtas.Sync
                 yield break;
             }
 
-            string body = JsonUtility.ToJson(new ValidateRequest { p_game_code = code });
+            string body = JsonUtility.ToJson(new ValidateRequest { p_game_code = code, p_guest_id = GuestId });
             RpcCallResult call = default;
             yield return PostRpc("validate_game_code", body, r => call = r);
 
@@ -339,7 +346,7 @@ namespace Ligtas.Sync
         {
             if (!TryGetActiveSession(out string gameCode, out string module))
             {
-                Debug.LogError("[LigasSync] CompleteScenario called without a validated Game Code.");
+                Debug.LogError("[LigtasSync] CompleteScenario called without a validated Game Code.");
                 return;
             }
 
@@ -356,7 +363,7 @@ namespace Ligtas.Sync
 
             if (!WriteRecord(record))
             {
-                Debug.LogError("[LigasSync] Could not save the game evaluation locally.");
+                Debug.LogError("[LigtasSync] Could not save the game evaluation locally.");
                 return;
             }
 
@@ -419,7 +426,7 @@ namespace Ligtas.Sync
                     record.uploadRejected = true;
                     record.lastUploadError = call.response.error;
                     WriteRecord(record);
-                    Debug.LogWarning($"[LigasSync] Upload rejected for {record.gameCode}: {call.response.error}");
+                    Debug.LogWarning($"[LigtasSync] Upload rejected for {record.gameCode}: {call.response.error}");
                 }
                 else if (call.retryable)
                 {
@@ -430,7 +437,7 @@ namespace Ligtas.Sync
                     record.uploadRejected = true;
                     record.lastUploadError = call.detail;
                     WriteRecord(record);
-                    Debug.LogWarning($"[LigasSync] Upload failed permanently for {record.gameCode}: {call.detail}");
+                    Debug.LogWarning($"[LigtasSync] Upload failed permanently for {record.gameCode}: {call.detail}");
                 }
             }
 
@@ -470,7 +477,7 @@ namespace Ligtas.Sync
             }
             catch (Exception e)
             {
-                Debug.LogError("[LigasSync] Write failed: " + e.Message);
+                Debug.LogError("[LigtasSync] Write failed: " + e.Message);
                 return false;
             }
         }
@@ -483,7 +490,7 @@ namespace Ligtas.Sync
             }
             catch (Exception e)
             {
-                Debug.LogWarning($"[LigasSync] Skipping unreadable record {path}: {e.Message}");
+                Debug.LogWarning($"[LigtasSync] Skipping unreadable record {path}: {e.Message}");
                 return null;
             }
         }
