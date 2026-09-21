@@ -52,3 +52,16 @@ $$;
 
 revoke all on function public.validate_game_code(text, text) from public;
 grant execute on function public.validate_game_code(text, text) to anon, authenticated;
+
+-- 2. Game Codes now stay valid for 20 days (was 2) ------------------------------
+-- Applies to sessions created from now on; existing rows keep their expired_at.
+alter table public.assessment_sessions
+  alter column expired_at set default (now() + interval '20 days');
+
+-- 3. Extend codes that already exist to 20 days from creation -------------------
+-- Only sessions still waiting for the game, so completed sessions keep their history.
+-- This also revives waiting codes that had already timed out under the old 2-day rule.
+update public.assessment_sessions
+   set expired_at = created_at + interval '20 days'
+ where status = 'waiting_for_game'
+   and expired_at < created_at + interval '20 days';

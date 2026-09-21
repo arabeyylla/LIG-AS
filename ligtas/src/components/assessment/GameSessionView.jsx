@@ -60,7 +60,7 @@ export default function GameSessionView({ gameCode, participantName, onStartPost
           <Hourglass className="text-orange-300 mx-auto mb-4" size={40} />
           <h3 className="text-lg font-black text-slate-800 mb-1">This Game Code has expired</h3>
           <p className="text-sm font-medium text-gray-500 mb-6 max-w-md mx-auto">
-            Game Codes are valid for 2 days. Take the Pre-Test again to get a fresh code for {category.label}.
+            Game Codes are valid for 20 days. Take the Pre-Test again to get a fresh code for {category.label}.
           </p>
           <PrimaryButton onClick={onNewSession}>Start a new Pre-Test <ArrowRight size={16} /></PrimaryButton>
         </Card>
