@@ -30,6 +30,26 @@ export function isCompleteGameCode(code) {
   return code.length === GAME_CODE_LENGTH;
 }
 
+/**
+ * True once a code that is still waiting for the game is past its expiry time.
+ * The database applies the same rule (effective_session_status); checking here
+ * too means an open page flips to "expired" at the deadline instead of waiting
+ * for the next poll, and a stale server can't show an expired code as valid.
+ */
+export function isPastExpiry(session, now = Date.now()) {
+  if (!session?.expires_at) return false;
+  const expiresAt = new Date(session.expires_at).getTime();
+  return Number.isFinite(expiresAt) && expiresAt <= now;
+}
+
+/** The session with `status` corrected to `expired` when a waiting code has run out. */
+export function withEffectiveStatus(session, now = Date.now()) {
+  if (session?.status === SESSION_STATUS.WAITING && isPastExpiry(session, now)) {
+    return { ...session, status: SESSION_STATUS.EXPIRED };
+  }
+  return session;
+}
+
 async function callRpc(fn, args) {
   if (!supabase) return { ok: false, error: 'not_configured' };
   try {
@@ -76,6 +96,8 @@ export function submitPostTest({ gameCode, score, total, answers, likert }) {
 const ERROR_MESSAGES = {
   invalid_code: "We couldn't find that Game Code. Check it and try again.",
   invalid_input: "Some of your answers couldn't be saved. Please review them and try again.",
+  incomplete_answers: 'Please answer every question before submitting.',
+  expired: 'This Game Code has expired. Take the Pre-Test again to get a new code.',
   game_not_completed: 'The Post-Test unlocks after you finish the scenario in the LIG+AS mobile app.',
   already_submitted: 'The Post-Test for this Game Code has already been submitted.',
   not_configured: 'The backend is not configured.',

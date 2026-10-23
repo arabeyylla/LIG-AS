@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getSession, SESSION_STATUS } from '../lib/assessmentSessions';
+import { getSession, SESSION_STATUS, withEffectiveStatus } from '../lib/assessmentSessions';
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -27,7 +27,7 @@ export function useGameSession(gameCode) {
 
   const applyResult = useCallback((result) => {
     if (result.ok) {
-      setSession(result);
+      setSession(withEffectiveStatus(result));
       setError(null);
     } else {
       setError(result.error);
@@ -54,7 +54,11 @@ export function useGameSession(gameCode) {
 
   useEffect(() => {
     if (!isWaiting) return undefined;
-    const check = () => { if (!document.hidden) refresh(); };
+    const check = () => {
+      // Expire on the client at the deadline, even if the tab is hidden or offline.
+      setSession((current) => withEffectiveStatus(current));
+      if (!document.hidden) refresh();
+    };
     const timer = setInterval(check, POLL_INTERVAL_MS);
     document.addEventListener('visibilitychange', check);
     return () => {

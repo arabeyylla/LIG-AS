@@ -10,6 +10,7 @@ import FAQ from "./pages/FAQ";
 import Download from "./pages/Download";
 import Assessment from "./pages/Assessment";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import AnnouncementsArchive from "./pages/AnnouncementsArchive";
 
 // Admin Pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -46,6 +47,7 @@ function App() {
         <Route path="/assessment" element={<Assessment />} />
         <Route path="/download" element={<Download />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/announcements" element={<AnnouncementsArchive />} />
         <Route path="/credits" element={<Navigate to="/team" replace />} />
 
         {/* Admin Routes */}

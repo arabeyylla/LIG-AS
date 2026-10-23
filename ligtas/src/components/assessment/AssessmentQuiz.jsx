@@ -1,7 +1,17 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { ClipboardCheck, Loader2, AlertCircle } from 'lucide-react';
 import { CONFIDENCE_LABELS, confidenceQuestion } from '../../lib/assessmentScoring';
 import { sessionErrorMessage } from '../../lib/assessmentSessions';
+
+const UNANSWERED_ERROR = 'unanswered';
+
+/** "Please answer every question… 3 of 10 still unanswered (Questions 2, 5, 9)." — null once none are left. */
+function unansweredMessage(questions, unanswered) {
+  if (unanswered.length === 0) return null;
+  const numbers = unanswered.map((q) => questions.indexOf(q) + 1);
+  const list = numbers.length > 5 ? `${numbers.slice(0, 5).join(', ')} and ${numbers.length - 5} more` : numbers.join(', ');
+  return `Please answer every question before submitting. ${unanswered.length} of ${questions.length} still unanswered (Question${numbers.length > 1 ? 's' : ''} ${list}).`;
+}
 
 /**
  * The question sequence for ONE category: (Pre-Test only) participant id, the
@@ -32,22 +42,45 @@ export default function AssessmentQuiz({
   const [answers, setAnswers] = useState({}); // { [questionId]: optionIndex }
   const [confidence, setConfidence] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  // A message string, or UNANSWERED_ERROR — that one is worded from the live
+  // answers (below), so it shrinks as the player fills in the blanks.
   const [error, setError] = useState(null);
+  // Set after a submit attempt with blanks, so unanswered items get highlighted.
+  const [showMissing, setShowMissing] = useState(false);
+  const cardRefs = useRef({}); // { [questionId | 'participant' | 'confidence']: element }
 
-  const answeredCount = Object.keys(answers).length;
-  const allAnswered = questions.length > 0 && answeredCount === questions.length;
+  const unanswered = questions.filter((q) => answers[q.id] === undefined);
+  const answeredCount = questions.length - unanswered.length;
   const typeLabel = type === 'pre' ? 'Pre' : 'Post';
+  const errorText = error === UNANSWERED_ERROR ? unansweredMessage(questions, unanswered) : error;
+
+  // Brings a blank item into view so the player sees what to fix (the error
+  // banner is at the top of a long form, usually off-screen at submit time).
+  function focusItem(key) {
+    const el = cardRefs.current[key];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.querySelector('input, button')?.focus({ preventScroll: true });
+  }
+
+  function fail(message, key) {
+    setError(message);
+    setShowMissing(true);
+    if (key) focusItem(key);
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     const trimmedId = participantId.trim();
-    if (showParticipantField && !trimmedId) return setError('Please enter your Student ID, email, or full name.');
-    if (!consentGiven) return setError('Please agree to the data privacy notice before submitting.');
-    if (!allAnswered) return setError('Please answer every question before submitting.');
-    if (!confidence) return setError('Please rate your confidence level.');
+    if (showParticipantField && !trimmedId) return fail('Please enter your Student ID, email, or full name.', 'participant');
+    if (!consentGiven) return fail('Please agree to the data privacy notice before submitting.');
+    if (questions.length === 0) return fail('There are no questions to submit.');
+    if (unanswered.length > 0) return fail(UNANSWERED_ERROR, unanswered[0].id);
+    if (!confidence) return fail('Please rate your confidence level.', 'confidence');
 
     setSubmitting(true);
     setError(null);
+    setShowMissing(false);
 
     const isCorrect = (q) => answers[q.id] === q.correctIndex;
     const result = await onSubmit({
@@ -73,18 +106,26 @@ export default function AssessmentQuiz({
     }
   }
 
+  const errorBanner = (announce) => errorText && (
+    <div role={announce ? 'alert' : undefined} className="flex items-start gap-2 p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-xl">
+      <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+      <span>{errorText}</span>
+    </div>
+  );
+  const missingCard = 'border-red-300 ring-2 ring-red-500/10';
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-xl">
-          <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </div>
-      )}
+    // noValidate: every check runs in handleSubmit so all errors look the same
+    // and scroll to the item, instead of the browser's own tooltip.
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {errorBanner(true)}
 
       {/* Participant identification (Pre-Test only) */}
       {showParticipantField && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+        <div
+          ref={(el) => { cardRefs.current.participant = el; }}
+          className={`bg-white rounded-2xl border p-6 sm:p-8 shadow-sm ${showMissing && !participantId.trim() ? missingCard : 'border-gray-100'}`}
+        >
           <label htmlFor="participant-id" className="block text-xs font-black text-slate-500 uppercase tracking-wider mb-1.5">
             Student ID, Email, or Full Name *
           </label>
@@ -110,19 +151,26 @@ export default function AssessmentQuiz({
         <div className="w-32 sm:w-48 h-1.5 bg-slate-100 rounded-full overflow-hidden">
           <div
             className="h-full bg-orange-500 transition-all duration-300"
-            style={{ width: `${(answeredCount / questions.length) * 100}%` }}
+            style={{ width: `${questions.length ? (answeredCount / questions.length) * 100 : 0}%` }}
           />
         </div>
       </div>
 
       {/* MCQ cards */}
-      {questions.map((q, idx) => (
-        <div key={q.id} className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
+      {questions.map((q, idx) => {
+        const missing = showMissing && answers[q.id] === undefined;
+        return (
+        <div
+          key={q.id}
+          ref={(el) => { cardRefs.current[q.id] = el; }}
+          className={`bg-white rounded-2xl border p-6 sm:p-8 shadow-sm transition-colors ${missing ? missingCard : 'border-gray-100'}`}
+        >
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <span className="text-xs font-black text-orange-500 uppercase tracking-widest">{category.label}</span>
             <span className="text-xs font-bold text-gray-300">
               Question {idx + 1} of {questions.length}
             </span>
+            {missing && <span className="ml-auto text-[11px] font-black text-red-500 uppercase tracking-wider">Not answered yet</span>}
           </div>
           <h3 className="text-base sm:text-lg font-black text-slate-800 mb-5">{q.question}</h3>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -150,10 +198,14 @@ export default function AssessmentQuiz({
             })}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {/* Likert confidence scale */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 shadow-sm">
+      <div
+        ref={(el) => { cardRefs.current.confidence = el; }}
+        className={`bg-white rounded-2xl border p-6 sm:p-8 shadow-sm ${showMissing && !confidence ? missingCard : 'border-gray-100'}`}
+      >
         <span className="block text-xs font-black text-orange-500 uppercase tracking-widest mb-3">Self-Evaluation</span>
         <h3 className="text-base sm:text-lg font-black text-slate-800 mb-5">{confidenceQuestion(category)}</h3>
         <div className="flex flex-wrap gap-3">
@@ -176,6 +228,14 @@ export default function AssessmentQuiz({
           })}
         </div>
       </div>
+
+      {/* Repeated next to the button, where the player is looking when they press it. */}
+      {errorBanner(false)}
+      {!errorText && unanswered.length > 0 && (
+        <p className="text-center text-xs font-bold text-slate-400">
+          {unanswered.length} question{unanswered.length !== 1 ? 's' : ''} left to answer
+        </p>
+      )}
 
       <button
         type="submit"

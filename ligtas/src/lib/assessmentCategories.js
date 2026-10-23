@@ -90,13 +90,42 @@ export const DEFAULT_ENABLED_CATEGORIES = Object.fromEntries(CATEGORY_IDS.map((i
 /** Number of questions drawn per attempt (fewer if a category has fewer active questions). */
 export const QUESTIONS_PER_ATTEMPT_KEY = 'assessment_questions_per_attempt';
 export const DEFAULT_QUESTIONS_PER_ATTEMPT = 10;
+/** Hard ceiling, also enforced by a check constraint on `site_settings`. */
+export const MAX_QUESTIONS_PER_ATTEMPT = 50;
 
 export function isCategoryEnabled(enabledMap, id) {
   return enabledMap?.[id] !== false;
 }
 
-/** Coerces the stored setting to a sane positive integer. */
+/**
+ * Coerces the stored setting to a whole number from 1 to MAX_QUESTIONS_PER_ATTEMPT.
+ * Invalid values (blank, 0, negative, text) fall back to the default; values
+ * above the ceiling are capped.
+ */
 export function normalizeQuestionCount(value) {
   const n = Math.floor(Number(value));
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_QUESTIONS_PER_ATTEMPT;
+  if (!Number.isFinite(n) || n < 1) return DEFAULT_QUESTIONS_PER_ATTEMPT;
+  return Math.min(n, MAX_QUESTIONS_PER_ATTEMPT);
+}
+
+/**
+ * Validates what an admin typed for "Questions per attempt".
+ * `maxAvailable` is the most questions any visible module can serve for BOTH
+ * its Pre-Test and Post-Test (capped at MAX_QUESTIONS_PER_ATTEMPT), or null
+ * while the question bank is still loading.
+ * Returns an error message, or null when the value is valid.
+ */
+export function validateQuestionCount(raw, maxAvailable) {
+  const text = String(raw ?? '').trim();
+  if (text === '') return 'Enter how many questions each attempt should draw.';
+  if (!/^\d+$/.test(text)) return 'Enter a whole number (no decimals, letters, or negative values).';
+  const n = Number(text);
+  if (n < 1) return 'Each attempt needs at least 1 question.';
+  if (n > MAX_QUESTIONS_PER_ATTEMPT) return `Each attempt can draw at most ${MAX_QUESTIONS_PER_ATTEMPT} questions.`;
+  if (maxAvailable === null) return null;
+  if (maxAvailable === 0) return 'No visible module has both active Pre-Test and Post-Test questions yet. Add questions first.';
+  if (n > maxAvailable) {
+    return `Can't be more than ${maxAvailable}: no visible module has more than ${maxAvailable} active Pre-Test and Post-Test questions.`;
+  }
+  return null;
 }

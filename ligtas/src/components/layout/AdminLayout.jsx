@@ -80,8 +80,10 @@ export default function AdminLayout({ children }) {
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <div className="flex-1 lg:ml-72">
+      {/* MAIN CONTENT — `min-w-0` lets this flex child shrink below its content's
+          width, so wide tables scroll inside their own overflow-x-auto wrapper
+          instead of stretching the whole page sideways. */}
+      <div className="flex-1 min-w-0 lg:ml-72">
         {/* Mobile top bar */}
         <div className="lg:hidden sticky top-0 z-30 bg-white border-b border-slate-100 px-4 py-3 flex items-center gap-4">
           <button onClick={() => setSidebarOpen(true)} className="p-2 text-slate-700 hover:text-orange-500" aria-label="Open menu">

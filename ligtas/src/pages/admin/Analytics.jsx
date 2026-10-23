@@ -62,7 +62,7 @@ export default function Analytics() {
 
   const maxVisits = pageVisits.length > 0 ? pageVisits[0].count : 1;
 
-  const pageLabels = { home: 'Home', about: 'About', 'how-to-play': 'How to Play', team: 'Team', faq: 'FAQ', download: 'Download' };
+  const pageLabels = { home: 'Home', about: 'About', 'how-to-play': 'How to Play', team: 'Team', faq: 'FAQ', download: 'Download', assessment: 'Assessment', announcements: 'Announcements' };
 
   return (
     <AdminLayout>

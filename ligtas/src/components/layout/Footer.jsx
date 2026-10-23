@@ -20,6 +20,7 @@ export default function Footer() {
               <Link to="/how-to-play" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">How to Play</Link>
               <Link to="/team" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">Team</Link>
               <Link to="/faq" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">FAQ</Link>
+              <Link to="/announcements" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">Announcements</Link>
               <Link to="/privacy" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">Privacy Policy</Link>
               <Link to="/download" className="block text-gray-500 hover:text-orange-500 text-sm lg:text-base transition-colors">Download</Link>
             </div>

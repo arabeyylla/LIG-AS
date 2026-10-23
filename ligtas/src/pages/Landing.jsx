@@ -240,9 +240,14 @@ export default function Landing() {
       {/* ANNOUNCEMENTS */}
       <section className="py-16 sm:py-20 lg:py-28 bg-gray-50">
         <div className="px-4 sm:px-8 lg:px-[5%]">
-          <div className="mb-8 sm:mb-10">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Announcements & Updates</h2>
-            <p className="text-gray-500 mt-2 text-sm sm:text-base lg:text-lg">Latest news from the LIG+AS team</p>
+          <div className="mb-8 sm:mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+            <div>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900">Announcements & Updates</h2>
+              <p className="text-gray-500 mt-2 text-sm sm:text-base lg:text-lg">Latest news from the LIG+AS team</p>
+            </div>
+            <Link to="/announcements" className="flex items-center gap-1 font-black text-sm lg:text-base text-slate-700 hover:text-orange-500 transition-colors group">
+              View all &amp; past announcements <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
           {announcementLoading ? (
             <div className="bg-white p-8 sm:p-10 rounded-xl shadow-sm border border-gray-100 text-gray-400 font-medium">Loading...</div>
@@ -259,7 +264,10 @@ export default function Landing() {
                       {(item.category || 'System') + ' \u2022 ' + new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: '2-digit' })}
                     </div>
                     <h4 className="text-lg sm:text-xl lg:text-2xl font-bold mb-3">{item.title}</h4>
-                    <p className="text-gray-600 text-sm sm:text-base lg:text-lg leading-relaxed mb-6 whitespace-pre-line line-clamp-4">{item.body}</p>
+                    <p className="text-gray-600 text-sm sm:text-base lg:text-lg leading-relaxed mb-4 whitespace-pre-line line-clamp-4">{item.body}</p>
+                    <Link to={`/announcements#announcement-${item.id}`} className="inline-block text-sm font-bold text-orange-500 hover:text-orange-600 mb-6">
+                      Read full announcement
+                    </Link>
                   </div>
                   {item.is_pinned ? (
                     <span className="bg-purple-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded w-fit">Pinned</span>

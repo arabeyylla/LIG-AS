@@ -94,12 +94,12 @@ export default function Assessments() {
         </div>
 
         <div className="mb-8">
-          <div className="inline-flex bg-slate-100 p-1.5 rounded-xl gap-1">
+          <div className="flex sm:inline-flex w-full sm:w-auto bg-slate-100 p-1.5 rounded-xl gap-1">
             {ADMIN_TABS.map((tab) => (
               <button
                 key={tab.key}
                 onClick={() => setAdminTab(tab.key)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                className={`flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-5 py-2.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider text-center transition-all ${
                   adminTab === tab.key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
@@ -134,7 +134,7 @@ export default function Assessments() {
               <button
                 key={opt.value}
                 onClick={() => setTypeFilter(opt.value)}
-                className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                className={`flex-1 lg:flex-none px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider whitespace-nowrap transition-all ${
                   typeFilter === opt.value ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'
                 }`}
               >
@@ -145,14 +145,14 @@ export default function Assessments() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-4 py-2.5 bg-slate-100 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 outline-none cursor-pointer"
+            className="w-full lg:w-auto px-4 py-2.5 bg-slate-100 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 outline-none cursor-pointer"
           >
             <option value="all">All Categories</option>
             {ASSESSMENT_CATEGORIES.map((c) => (
               <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>
             ))}
           </select>
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1 lg:min-w-[200px]">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" />
             <input
               type="text"
@@ -176,69 +176,64 @@ export default function Assessments() {
             <p className="text-slate-400 font-bold">{rows.length === 0 ? 'No assessment submissions yet.' : 'No records match your filters.'}</p>
           </div>
         ) : (
-          <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 text-left">
-                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Participant</th>
-                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Type</th>
-                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Category</th>
-                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Score</th>
-                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Confidence</th>
-                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Submitted</th>
-                    <th className="px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredRows.map((row) => {
-                    const percent = row.total_questions ? Math.round((row.score / row.total_questions) * 100) : 0;
-                    return (
+          <>
+            {/* Phones: one card per result */}
+            <div className="md:hidden space-y-3">
+              {filteredRows.map((row) => (
+                <div key={row.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 truncate">{row.identifier}</p>
+                      <p className="text-xs font-bold text-slate-500 mt-0.5">{getCategory(row.disaster_module).label}</p>
+                    </div>
+                    <TypeBadge type={row.assessment_type} />
+                  </div>
+                  <div className="flex items-center gap-4 mt-3 text-sm">
+                    <span className="font-black text-slate-800"><ScoreText row={row} /></span>
+                    <span className="font-bold text-slate-500 text-xs">Confidence {confidenceText(row)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 mt-3">
+                    <span className="text-slate-400 font-bold text-[11px]">{formatDate(row.created_at)}</span>
+                    <RowActions row={row} deleting={deletingId === row.id} onView={() => setSelectedRow(row)} onDelete={() => handleDelete(row.id)} />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tablet and up: table (scrolls sideways if it still doesn't fit) */}
+            <div className="hidden md:block bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-left">
+                      <th className="px-4 xl:px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Participant</th>
+                      <th className="px-4 xl:px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Type</th>
+                      <th className="px-4 xl:px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Category</th>
+                      <th className="px-4 xl:px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Score</th>
+                      <th className="hidden lg:table-cell px-4 xl:px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Confidence</th>
+                      <th className="hidden xl:table-cell px-4 xl:px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider">Submitted</th>
+                      <th className="px-4 xl:px-6 py-4 font-black text-slate-400 uppercase text-xs tracking-wider text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRows.map((row) => (
                       <tr key={row.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 font-bold text-slate-800 whitespace-nowrap">{row.identifier}</td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase whitespace-nowrap ${
-                              row.assessment_type === 'pre-assessment' ? 'bg-slate-100 text-slate-600' : 'bg-orange-100 text-orange-600'
-                            }`}
-                          >
-                            {row.assessment_type === 'pre-assessment' ? 'Pre' : 'Post'}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 font-bold text-slate-600 whitespace-nowrap">{getCategory(row.disaster_module).label}</td>
-                        <td className="px-6 py-4 font-black text-slate-800 whitespace-nowrap">
-                          {row.score}/{row.total_questions} <span className="text-slate-400 font-bold">({percent}%)</span>
-                        </td>
-                        <td className="px-6 py-4 font-bold text-slate-600 whitespace-nowrap">
-                          {row.likert_preparedness_rating ? `${row.likert_preparedness_rating}/5` : '—'}
-                        </td>
-                        <td className="px-6 py-4 text-slate-400 font-bold text-xs whitespace-nowrap">{formatDate(row.created_at)}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => setSelectedRow(row)}
-                              className="p-2.5 bg-slate-100 hover:bg-orange-100 hover:text-orange-600 text-slate-400 rounded-xl transition-colors"
-                              title="View details"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(row.id)}
-                              disabled={deletingId === row.id}
-                              className="p-2.5 bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 rounded-xl transition-colors disabled:opacity-50"
-                              title="Delete"
-                            >
-                              {deletingId === row.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                            </button>
-                          </div>
+                        <td className="px-4 xl:px-6 py-4 font-bold text-slate-800 max-w-[220px] truncate" title={row.identifier}>{row.identifier}</td>
+                        <td className="px-4 xl:px-6 py-4"><TypeBadge type={row.assessment_type} /></td>
+                        <td className="px-4 xl:px-6 py-4 font-bold text-slate-600 whitespace-nowrap">{getCategory(row.disaster_module).label}</td>
+                        <td className="px-4 xl:px-6 py-4 font-black text-slate-800 whitespace-nowrap"><ScoreText row={row} /></td>
+                        <td className="hidden lg:table-cell px-4 xl:px-6 py-4 font-bold text-slate-600 whitespace-nowrap">{confidenceText(row)}</td>
+                        <td className="hidden xl:table-cell px-4 xl:px-6 py-4 text-slate-400 font-bold text-xs whitespace-nowrap">{formatDate(row.created_at)}</td>
+                        <td className="px-4 xl:px-6 py-4">
+                          <RowActions row={row} deleting={deletingId === row.id} onView={() => setSelectedRow(row)} onDelete={() => handleDelete(row.id)} />
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {!loading && filteredRows.length > 0 && (
@@ -255,5 +250,49 @@ export default function Assessments() {
       {confirmDialog}
       {toastElement}
     </AdminLayout>
+  );
+}
+
+// Pieces shared by the phone cards and the table rows of the Results tab.
+
+function TypeBadge({ type }) {
+  const pre = type === 'pre-assessment';
+  return (
+    <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase whitespace-nowrap ${pre ? 'bg-slate-100 text-slate-600' : 'bg-orange-100 text-orange-600'}`}>
+      {pre ? 'Pre' : 'Post'}
+    </span>
+  );
+}
+
+function ScoreText({ row }) {
+  const percent = row.total_questions ? Math.round((row.score / row.total_questions) * 100) : 0;
+  return <>{row.score}/{row.total_questions} <span className="text-slate-400 font-bold">({percent}%)</span></>;
+}
+
+function confidenceText(row) {
+  return row.likert_preparedness_rating ? `${row.likert_preparedness_rating}/5` : '—';
+}
+
+function RowActions({ deleting, onView, onDelete }) {
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <button
+        onClick={onView}
+        className="p-2.5 bg-slate-100 hover:bg-orange-100 hover:text-orange-600 text-slate-400 rounded-xl transition-colors"
+        title="View details"
+        aria-label="View details"
+      >
+        <Eye size={16} />
+      </button>
+      <button
+        onClick={onDelete}
+        disabled={deleting}
+        className="p-2.5 bg-slate-100 hover:bg-red-500 hover:text-white text-slate-400 rounded-xl transition-colors disabled:opacity-50"
+        title="Delete"
+        aria-label="Delete"
+      >
+        {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+      </button>
+    </div>
   );
 }

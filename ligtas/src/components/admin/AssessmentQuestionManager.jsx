@@ -11,9 +11,11 @@ import {
   DEFAULT_ENABLED_CATEGORIES,
   QUESTIONS_PER_ATTEMPT_KEY,
   DEFAULT_QUESTIONS_PER_ATTEMPT,
+  MAX_QUESTIONS_PER_ATTEMPT,
   getCategory,
   isCategoryEnabled,
   normalizeQuestionCount,
+  validateQuestionCount,
 } from '../../lib/assessmentCategories';
 import { Plus, Edit3, Trash2, Loader2, Eye, EyeOff, Search, HelpCircle, LayoutGrid, Save, X, CheckCircle2, AlertTriangle } from 'lucide-react';
 
@@ -209,7 +211,7 @@ export default function AssessmentQuestionManager() {
 
   return (
     <div className="space-y-6">
-      <CategorySettings questions={questions} showToast={showToast} />
+      <CategorySettings questions={questions} questionsLoading={loading} showToast={showToast} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-black text-slate-800 text-lg">All Questions ({questions.length})</h3>
@@ -221,31 +223,31 @@ export default function AssessmentQuestionManager() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-        <div>
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-end gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+        <div className="min-w-0">
           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Type</label>
-          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
+          <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
             <option value="all">All Types</option>
             <option value="pre-assessment">Pre-Assessment</option>
             <option value="post-assessment">Post-Assessment</option>
           </select>
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Category</label>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
+          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
             <option value="all">All Categories</option>
             {ASSESSMENT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
           </select>
         </div>
-        <div>
+        <div className="min-w-0 col-span-2 sm:col-span-1">
           <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">Status</label>
-          <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)} className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
+          <select value={activeFilter} onChange={(e) => setActiveFilter(e.target.value)} className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
             <option value="all">All</option>
             <option value="active">Eligible / Active</option>
             <option value="inactive">Excluded</option>
           </select>
         </div>
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative col-span-2 sm:flex-1 sm:min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
           <input
             type="text"
@@ -298,7 +300,7 @@ export default function AssessmentQuestionManager() {
                 const active = q.is_active ?? true;
                 return (
                   <div key={q.id} className={`bg-white rounded-2xl border p-5 shadow-sm transition-all ${active ? 'border-slate-100' : 'border-slate-100 opacity-60'}`}>
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <span className={`px-2.5 py-0.5 text-[10px] font-black uppercase rounded-md ${q.assessment_type === 'pre-assessment' ? 'bg-slate-100 text-slate-600' : 'bg-orange-100 text-orange-600'}`}>
@@ -312,12 +314,12 @@ export default function AssessmentQuestionManager() {
                           {q.options.map((opt, idx) => (
                             <div key={idx} className={`flex items-center gap-2 text-xs px-2.5 py-1.5 rounded-lg ${idx === q.correct_index ? 'bg-green-50 text-green-700 font-bold' : 'bg-slate-50 text-slate-500'}`}>
                               {idx === q.correct_index && <CheckCircle2 size={12} className="flex-shrink-0" />}
-                              <span className="truncate">{String.fromCharCode(65 + idx)}. {opt}</span>
+                              <span className="min-w-0 break-words sm:truncate">{String.fromCharCode(65 + idx)}. {opt}</span>
                             </div>
                           ))}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center justify-end gap-2 flex-shrink-0 border-t border-slate-50 pt-3 sm:border-0 sm:pt-0">
                         <button
                           onClick={() => toggleActive(q)}
                           disabled={togglingId === q.id}
@@ -438,7 +440,7 @@ function QuestionFormFields({ formData, setFormData, onSubmit, submitting, onCan
 // per assessment type, so an admin can see at a glance whether a category is
 // ready to be switched on. Toggles save immediately; the per-attempt number
 // has its own Save button.
-function CategorySettings({ questions, showToast }) {
+function CategorySettings({ questions, questionsLoading, showToast }) {
   const { value: enabledMap, save: saveEnabled, loading: enabledLoading } = useSiteSetting(ENABLED_CATEGORIES_KEY, DEFAULT_ENABLED_CATEGORIES);
   const { value: perAttemptSetting, save: savePerAttempt, loading: perAttemptLoading } = useSiteSetting(QUESTIONS_PER_ATTEMPT_KEY, DEFAULT_QUESTIONS_PER_ATTEMPT);
   const perAttempt = normalizeQuestionCount(perAttemptSetting);
@@ -459,6 +461,20 @@ function CategorySettings({ questions, showToast }) {
     return counts;
   }, [questions]);
 
+  // Upper bound for "Questions per attempt": the most questions any VISIBLE
+  // game module can serve for both its Pre-Test and Post-Test (the two tests
+  // must have the same length for the knowledge-gain comparison to be fair).
+  // Modules with fewer questions simply use all they have. null while loading.
+  const maxAvailable = useMemo(() => {
+    if (questionsLoading || enabledLoading) return null;
+    const perModule = ASSESSMENT_CATEGORIES
+      .filter((c) => c.hasGameScenario && isCategoryEnabled(enabledMap, c.id))
+      .map((c) => Math.min(activeCounts[c.id].pre, activeCounts[c.id].post));
+    return Math.min(MAX_QUESTIONS_PER_ATTEMPT, Math.max(0, ...perModule));
+  }, [questionsLoading, enabledLoading, enabledMap, activeCounts]);
+
+  const countError = validateQuestionCount(countDraft, maxAvailable);
+
   async function toggleCategory(category) {
     const nextEnabled = !isCategoryEnabled(enabledMap, category.id);
     setTogglingId(category.id);
@@ -473,7 +489,8 @@ function CategorySettings({ questions, showToast }) {
   }
 
   async function handleSaveCount() {
-    const next = normalizeQuestionCount(countDraft);
+    if (countError) return; // Save is disabled too; this guards Enter-key or double clicks.
+    const next = Number(String(countDraft).trim());
     setSavingCount(true);
     const { error } = await savePerAttempt(next);
     setSavingCount(false);
@@ -485,7 +502,7 @@ function CategorySettings({ questions, showToast }) {
     showToast(`Each attempt will now draw up to ${next} questions.`, 'success');
   }
 
-  const countDirty = normalizeQuestionCount(countDraft) !== perAttempt;
+  const countDirty = String(countDraft).trim() !== String(perAttempt);
 
   return (
     <div className="bg-white rounded-[2rem] border border-slate-100 p-6 sm:p-8 shadow-sm">
@@ -557,23 +574,35 @@ function CategorySettings({ questions, showToast }) {
       </div>
 
       <div className="flex items-end justify-between flex-wrap gap-4 pt-6 border-t border-slate-100">
-        <div>
+        <div className="min-w-0 flex-1">
           <label htmlFor="questions-per-attempt" className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-1.5">
             Questions per attempt
           </label>
           <input
             id="questions-per-attempt"
             type="number"
+            inputMode="numeric"
             min={1}
-            max={50}
+            max={maxAvailable || MAX_QUESTIONS_PER_ATTEMPT}
+            step={1}
             value={countDraft}
             onChange={(e) => setCountDraft(e.target.value)}
-            className="w-28 p-3 bg-slate-50 border border-slate-100 rounded-xl text-sm font-black text-slate-800 outline-none focus:border-orange-500 transition-all"
+            aria-invalid={Boolean(countError)}
+            aria-describedby="questions-per-attempt-help"
+            className={`w-28 p-3 bg-slate-50 border rounded-xl text-sm font-black text-slate-800 outline-none transition-all ${
+              countError ? 'border-red-400 focus:border-red-500' : 'border-slate-100 focus:border-orange-500'
+            }`}
           />
+          <p id="questions-per-attempt-help" role={countError ? 'alert' : undefined} className={`text-xs font-bold mt-2 ${countError ? 'text-red-600' : 'text-slate-400'}`}>
+            {countError
+              ?? (maxAvailable
+                ? `Allowed: 1 to ${maxAvailable}. Modules with fewer questions use all they have.`
+                : 'Checking the question bank...')}
+          </p>
         </div>
         <button
           onClick={handleSaveCount}
-          disabled={!countDirty || savingCount || perAttemptLoading}
+          disabled={!countDirty || Boolean(countError) || savingCount || perAttemptLoading}
           className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {savingCount ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}

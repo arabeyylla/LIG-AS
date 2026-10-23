@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Loader2, Users, ChevronDown, ChevronUp, Download, FileJson, CheckCircle2, Circle, RefreshCw } from 'lucide-react';
 import { useGuestSessions } from '../../hooks/useGuestSessions';
 import { GAME_CATEGORIES, getCategory } from '../../lib/assessmentCategories';
@@ -16,6 +16,29 @@ const STATUS_META = {
 const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString(undefined, { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : null;
 
+// Same strict rule as the database (effective_session_status): a code still
+// waiting for the game is expired once `expired_at` has passed.
+function withExpiry(row, now) {
+  if (row.status === SESSION_STATUS.WAITING && row.expired_at && new Date(row.expired_at).getTime() <= now) {
+    return { ...row, status: SESSION_STATUS.EXPIRED };
+  }
+  return row;
+}
+
+// Table columns. `className` hides the less important ones on narrower
+// screens; below `md` the table is replaced by cards (SessionCard).
+const COLUMNS = [
+  { label: 'Guest' },
+  { label: 'Game Code' },
+  { label: 'Module' },
+  { label: 'Status' },
+  { label: 'Pre-Test', className: 'hidden lg:table-cell' },
+  { label: 'Game Score', className: 'hidden xl:table-cell' },
+  { label: 'Post-Test', className: 'hidden lg:table-cell' },
+  { label: 'Gain' },
+  { label: 'Created', className: 'hidden xl:table-cell' },
+];
+
 /**
  * "Guest Sessions" tab of the admin Assessment page: every Game Code session
  * with its guest id, module, status, progress timeline and Pre / Game / Post
@@ -23,7 +46,14 @@ const formatDateTime = (value) =>
  * participant search, date range) and CSV / JSON export of the filtered rows.
  */
 export default function GuestSessionTracker() {
-  const { rows, loading, error, refetch } = useGuestSessions();
+  const { rows: rawRows, loading, error, refetch } = useGuestSessions();
+  // Ticks every minute so a code flips to Expired at its deadline while the tab is open.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const rows = useMemo(() => rawRows.map((row) => withExpiry(row, now)), [rawRows, now]);
 
   const [statusFilter, setStatusFilter] = useState('all');
   const [moduleFilter, setModuleFilter] = useState('all');
@@ -95,7 +125,7 @@ export default function GuestSessionTracker() {
       </div>
 
       {/* Filters + export */}
-      <div className="flex flex-wrap items-end gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+      <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-end gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
         <FilterSelect label="Module" value={moduleFilter} onChange={setModuleFilter}>
           <option value="all">All Modules</option>
           {GAME_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.emoji} {c.label}</option>)}
@@ -104,15 +134,15 @@ export default function GuestSessionTracker() {
           <option value="all">All Statuses</option>
           {Object.entries(STATUS_META).map(([status, meta]) => <option key={status} value={status}>{meta.label}</option>)}
         </FilterSelect>
-        <div>
+        <div className="min-w-0">
           <label htmlFor="sessions-from" className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">From</label>
-          <input id="sessions-from" type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-600 outline-none" />
+          <input id="sessions-from" type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => setDateFrom(e.target.value)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-600 outline-none" />
         </div>
-        <div>
+        <div className="min-w-0">
           <label htmlFor="sessions-to" className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">To</label>
-          <input id="sessions-to" type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-600 outline-none" />
+          <input id="sessions-to" type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-600 outline-none" />
         </div>
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative col-span-2 sm:flex-1 sm:min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" />
           <input
             type="text"
@@ -123,8 +153,8 @@ export default function GuestSessionTracker() {
             className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 outline-none focus:border-orange-400"
           />
         </div>
-        {hasFilters && <button onClick={clearFilters} className="px-3 py-2.5 text-xs font-black text-slate-400 hover:text-slate-700 uppercase tracking-wider">Clear</button>}
-        <div className="flex gap-2 ml-auto">
+        <div className="col-span-2 flex items-center justify-end gap-2 sm:ml-auto">
+          {hasFilters && <button onClick={clearFilters} className="mr-auto sm:mr-0 px-3 py-2.5 text-xs font-black text-slate-400 hover:text-slate-700 uppercase tracking-wider">Clear</button>}
           <button onClick={refetch} className="p-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-500 rounded-lg transition-colors" title="Refresh" aria-label="Refresh"><RefreshCw size={16} /></button>
           <button onClick={() => exportSessions(filteredRows, 'csv')} disabled={filteredRows.length === 0} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-lg text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             <Download size={14} /> CSV
@@ -147,25 +177,35 @@ export default function GuestSessionTracker() {
           <p className="text-slate-400 font-bold">{rows.length === 0 ? 'No game sessions yet.' : 'No sessions match your filters.'}</p>
         </div>
       ) : (
-        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 text-left">
-                  <th className="w-10 px-4 py-4"><span className="sr-only">Details</span></th>
-                  {['Guest', 'Game Code', 'Module', 'Status', 'Pre-Test', 'Game Score', 'Post-Test', 'Gain', 'Created'].map((heading) => (
-                    <th key={heading} className="px-4 py-4 font-black text-slate-400 uppercase text-xs tracking-wider whitespace-nowrap">{heading}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRows.map((row) => (
-                  <SessionRow key={row.id} row={row} expanded={expandedId === row.id} onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)} />
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* Phones: one card per session */}
+          <div className="md:hidden space-y-3">
+            {filteredRows.map((row) => (
+              <SessionCard key={row.id} row={row} expanded={expandedId === row.id} onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)} />
+            ))}
           </div>
-        </div>
+
+          {/* Tablet and up: table (scrolls sideways if it still doesn't fit) */}
+          <div className="hidden md:block bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 text-left">
+                    <th className="w-10 px-4 py-4"><span className="sr-only">Details</span></th>
+                    {COLUMNS.map((col) => (
+                      <th key={col.label} className={`px-4 py-4 font-black text-slate-400 uppercase text-xs tracking-wider whitespace-nowrap ${col.className ?? ''}`}>{col.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => (
+                    <SessionRow key={row.id} row={row} expanded={expandedId === row.id} onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
 
       {!loading && filteredRows.length > 0 && (
@@ -177,9 +217,9 @@ export default function GuestSessionTracker() {
 
 function FilterSelect({ label, value, onChange, children }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="w-full sm:w-auto px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-xs font-black uppercase tracking-wide text-slate-600 outline-none cursor-pointer">
         {children}
       </select>
     </div>
@@ -212,15 +252,11 @@ export function SessionRow({ row, expanded, onToggle }) {
         <td className="px-4 py-4 font-black text-slate-700 tracking-widest whitespace-nowrap">{row.game_code}</td>
         <td className="px-4 py-4 font-bold text-slate-600 whitespace-nowrap"><span aria-hidden="true">{category.emoji}</span> {category.label}</td>
         <td className="px-4 py-4 whitespace-nowrap"><span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase ${meta.badge}`}>{meta.label}</span></td>
-        <td className="px-4 py-4 font-bold text-slate-600 whitespace-nowrap">{scoreText(row.pre_score, row.pre_total)}</td>
-        <td className="px-4 py-4 font-bold text-slate-600 whitespace-nowrap">{row.game_score ?? '—'}</td>
-        <td className="px-4 py-4 font-bold text-slate-600 whitespace-nowrap">{scoreText(row.post_score, row.post_total)}</td>
-        <td className="px-4 py-4 whitespace-nowrap">
-          {gain === null ? <span className="text-slate-300 font-bold">—</span> : (
-            <span className={`font-black ${gain > 0 ? 'text-green-600' : gain < 0 ? 'text-red-600' : 'text-slate-500'}`}>{gain > 0 ? '+' : ''}{gain}%</span>
-          )}
-        </td>
-        <td className="px-4 py-4 text-slate-400 font-bold text-xs whitespace-nowrap">{formatDateTime(row.created_at)}</td>
+        <td className="hidden lg:table-cell px-4 py-4 font-bold text-slate-600 whitespace-nowrap">{scoreText(row.pre_score, row.pre_total)}</td>
+        <td className="hidden xl:table-cell px-4 py-4 font-bold text-slate-600 whitespace-nowrap">{row.game_score ?? '—'}</td>
+        <td className="hidden lg:table-cell px-4 py-4 font-bold text-slate-600 whitespace-nowrap">{scoreText(row.post_score, row.post_total)}</td>
+        <td className="px-4 py-4 whitespace-nowrap"><GainText gain={gain} /></td>
+        <td className="hidden xl:table-cell px-4 py-4 text-slate-400 font-bold text-xs whitespace-nowrap">{formatDateTime(row.created_at)}</td>
       </tr>
       {expanded && (
         <tr className="border-b border-slate-50 bg-slate-50/60">
@@ -230,6 +266,55 @@ export function SessionRow({ row, expanded, onToggle }) {
         </tr>
       )}
     </>
+  );
+}
+
+function rowGain(row) {
+  return row.knowledge_gain === null || row.knowledge_gain === undefined ? null : Number(row.knowledge_gain);
+}
+
+function GainText({ gain }) {
+  if (gain === null) return <span className="text-slate-300 font-bold">—</span>;
+  return <span className={`font-black ${gain > 0 ? 'text-green-600' : gain < 0 ? 'text-red-600' : 'text-slate-500'}`}>{gain > 0 ? '+' : ''}{gain}%</span>;
+}
+
+// Phone layout of one session: the essentials up front, the full detail
+// (timeline + game metrics, the same as the table's expanded row) on tap.
+function SessionCard({ row, expanded, onToggle }) {
+  const category = getCategory(row.module);
+  const meta = STATUS_META[row.status] ?? { label: row.status, badge: 'bg-slate-100 text-slate-600' };
+  const Chevron = expanded ? ChevronUp : ChevronDown;
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm">
+      <button type="button" onClick={onToggle} aria-expanded={expanded} className="w-full text-left p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-black text-slate-800 tracking-widest">{row.game_code}</p>
+            <p className="text-xs font-bold text-slate-500 mt-0.5"><span aria-hidden="true">{category.emoji}</span> {category.label}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase ${meta.badge}`}>{meta.label}</span>
+            <Chevron size={16} className="text-slate-300" />
+          </div>
+        </div>
+        <p className="text-xs font-bold text-slate-400 mt-2 truncate">
+          <span className="font-mono">{row.guest_id ?? 'Not linked yet'}</span>
+          {row.identifier && <> · {row.identifier}</>}
+        </p>
+        <dl className="grid grid-cols-3 gap-2 mt-3 text-xs">
+          <div><dt className="font-black text-slate-400 uppercase text-[10px]">Pre</dt><dd className="font-bold text-slate-700">{scoreText(row.pre_score, row.pre_total)}</dd></div>
+          <div><dt className="font-black text-slate-400 uppercase text-[10px]">Post</dt><dd className="font-bold text-slate-700">{scoreText(row.post_score, row.post_total)}</dd></div>
+          <div><dt className="font-black text-slate-400 uppercase text-[10px]">Gain</dt><dd><GainText gain={rowGain(row)} /></dd></div>
+        </dl>
+        <p className="text-[11px] font-bold text-slate-300 mt-2">Created {formatDateTime(row.created_at)}</p>
+      </button>
+      {expanded && (
+        <div className="border-t border-slate-100 bg-slate-50/60 p-4 rounded-b-2xl">
+          <SessionDetail row={row} />
+        </div>
+      )}
+    </div>
   );
 }
 

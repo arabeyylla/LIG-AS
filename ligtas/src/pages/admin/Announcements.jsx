@@ -19,6 +19,12 @@ const VISIBILITY_OPTIONS = [
 const DISPLAY_COUNT_OPTIONS = [3, 5, 10];
 const EMPTY_FORM = { title: '', body: '', category: 'System', pinned: false };
 
+// Writes are sent with `.select('id')` so we get back the rows that changed.
+// Row Level Security does not raise an error when it blocks an UPDATE/DELETE;
+// it just affects 0 rows, which would otherwise look like a success.
+const BLOCKED_BY_RLS =
+  'the database did not allow this change. Run supabase/migrations/20261015_announcement_policies.sql in the Supabase SQL editor.';
+
 export default function Announcements() {
   const { confirm, confirmDialog } = useConfirm();
   const { showToast, toastElement } = useToast();
@@ -66,7 +72,7 @@ export default function Announcements() {
     setSubmitting(true);
     try {
       if (editingId) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('announcements')
           .update({
             title: formData.title.trim(),
@@ -74,8 +80,10 @@ export default function Announcements() {
             category: formData.category,
             is_pinned: formData.pinned,
           })
-          .eq('id', editingId);
+          .eq('id', editingId)
+          .select('id');
         if (error) throw error;
+        if (!data?.length) throw new Error(BLOCKED_BY_RLS);
         logSystemEvent('announcement.updated', { title: formData.title.trim() }, 'announcement', editingId);
       } else {
         const { error } = await supabase
@@ -114,10 +122,15 @@ export default function Announcements() {
 
     setDeletingId(id);
     try {
-      const { error } = await supabase.from('announcements').delete().eq('id', id);
+      // `.select('id')` returns the rows actually deleted. Without it, a delete
+      // blocked by Row Level Security "succeeds" with no error and 0 rows, and
+      // the admin would see "Announcement deleted." while nothing changed.
+      const { data, error } = await supabase.from('announcements').delete().eq('id', id).select('id');
       if (error) throw error;
+      if (!data?.length) throw new Error(BLOCKED_BY_RLS);
+      setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+      if (editingId === id) handleCancelEdit();
       logSystemEvent('announcement.deleted', {}, 'announcement', id);
-      await fetchAnnouncements();
       showToast('Announcement deleted.', 'success');
     } catch (err) {
       console.error('Failed to delete:', err.message);
@@ -166,8 +179,9 @@ export default function Announcements() {
     const nextActive = !(item.is_active ?? true);
     setTogglingId(item.id);
     try {
-      const { error } = await supabase.from('announcements').update({ is_active: nextActive }).eq('id', item.id);
+      const { data, error } = await supabase.from('announcements').update({ is_active: nextActive }).eq('id', item.id).select('id');
       if (error) throw error;
+      if (!data?.length) throw new Error(BLOCKED_BY_RLS);
       setAnnouncements((prev) => prev.map((a) => (a.id === item.id ? { ...a, is_active: nextActive } : a)));
       logSystemEvent(nextActive ? 'announcement.shown' : 'announcement.hidden', {}, 'announcement', item.id);
       showToast(nextActive ? 'Announcement is now visible on the public site.' : 'Announcement hidden from the public site.', 'success');
